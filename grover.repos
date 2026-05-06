@@ -1,0 +1,21 @@
+repositories:
+  lerobot-ros:
+    type: git
+    url: https://github.com/ZackFra/lerobot-ros.git
+    version: main
+
+  # Add remotes for these local packages once available
+  # lerobot_description:
+  #   type: git
+  #   url: https://github.com/<org>/lerobot_description.git
+  #   version: master
+  #
+  # lerobot_controller:
+  #   type: git
+  #   url: https://github.com/<org>/lerobot_controller.git
+  #   version: master
+  #
+  # lerobot_moveit:
+  #   type: git
+  #   url: https://github.com/<org>/lerobot_moveit.git
+  #   version: master
