@@ -1,0 +1,20 @@
+{
+  "folders": [
+    {
+      "path": ".",
+      "name": "grover_ws"
+    },
+    {
+      "path": "src/grover.wiki",
+      "name": "grover.wiki"
+    },
+    {
+      "path": "src/lerobot-ros",
+      "name": "lerobot-ros"
+    }
+  ],
+  "settings": {
+    "git.autoRepositoryDetection": true,
+    "git.repositoryScanMaxDepth": 4
+  }
+}
