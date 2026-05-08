@@ -12,7 +12,7 @@ from launch_ros.parameter_descriptions import ParameterValue
 def generate_launch_description():
     follower_serial_port_arg = DeclareLaunchArgument(
         "follower_serial_port",
-        default_value="/dev/ttyUSB0",
+        default_value="/dev/so101_follower",
         description="Feetech follower serial port used for mandatory pre-configure.",
     )
     follower_serial_port = LaunchConfiguration("follower_serial_port")

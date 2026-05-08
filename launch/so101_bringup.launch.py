@@ -15,7 +15,7 @@ def generate_launch_description():
     )
     follower_serial_port_arg = DeclareLaunchArgument(
         "follower_serial_port",
-        default_value="/dev/ttyUSB0",
+        default_value="/dev/so101_follower",
         description="Follower serial device used by mandatory pre-configure on real hardware.",
     )
 
