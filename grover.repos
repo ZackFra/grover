@@ -3,6 +3,11 @@ repositories:
     type: git
     url: https://github.com/ZackFra/lerobot-ros.git
     version: main
+  
+  grover.wiki:
+    type: git
+    url: https://github.com/ZackFra/grover.wiki.git
+    version: main
 
   # Add remotes for these local packages once available
   # lerobot_description:
