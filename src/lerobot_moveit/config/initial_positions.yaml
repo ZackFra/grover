@@ -1,9 +1,8 @@
+# Snapshots from joint_states (safe-close calibration pose; see SO101ROSConfig).
 initial_positions:
-  "1" : 0
-  "2" : 0
-  "3" : 0
-  "4" : 0
-  "5" : 0
-  "6" : 0
-
-
+  shoulder_pan: 0.090527
+  shoulder_lift: -1.74524
+  elbow_flex: 1.5708
+  wrist_flex: 0.926751
+  wrist_roll: 0.278485
+  gripper_joint: -0.191775
