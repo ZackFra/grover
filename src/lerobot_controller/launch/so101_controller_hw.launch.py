@@ -2,7 +2,7 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, RegisterEventHandler
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction, RegisterEventHandler
 from launch.event_handlers import OnProcessExit, OnProcessStart
 from launch.substitutions import Command, LaunchConfiguration
 from launch_ros.actions import Node
@@ -14,6 +14,22 @@ def generate_launch_description():
         "follower_serial_port",
         default_value="/dev/so101_follower",
         description="Feetech follower serial port used for mandatory pre-configure.",
+    )
+    start_trajectory_controllers_arg = DeclareLaunchArgument(
+        "start_trajectory_controllers",
+        default_value="true",
+        description=(
+            "If false, only joint_state_broadcaster is loaded — no arm/gripper trajectory "
+            "controllers holding position (less stiff while debugging offsets / RViz)."
+        ),
+    )
+    disable_servo_torque_arg = DeclareLaunchArgument(
+        "disable_servo_torque",
+        default_value="false",
+        description=(
+            "If true, URDF uses passive Feetech joints (no position commands); "
+            "feetech_ros2_driver disables servo torque on init. Arm/gripper controllers are not started."
+        ),
     )
     follower_serial_port = LaunchConfiguration("follower_serial_port")
 
@@ -29,6 +45,8 @@ def generate_launch_description():
                 urdf_xacro,
                 " use_sim:=false usb_port:=",
                 follower_serial_port,
+                " hardware_passive:=",
+                LaunchConfiguration("disable_servo_torque"),
             ]
         ),
         value_type=str,
@@ -70,43 +88,63 @@ def generate_launch_description():
         )
     )
 
-    joint_state_broadcaster_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=[
-            "joint_state_broadcaster",
-            "--controller-manager",
-            "/controller_manager",
-        ],
-    )
-    arm_controller_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=["arm_controller", "--controller-manager", "/controller_manager"],
-    )
-    gripper_controller_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=["gripper_controller", "--controller-manager", "/controller_manager"],
-    )
+    def register_conditional_spawners(context):
+        tc = (
+            LaunchConfiguration("start_trajectory_controllers")
+            .perform(context)
+            .strip()
+            .lower()
+        )
+        dt = (
+            LaunchConfiguration("disable_servo_torque")
+            .perform(context)
+            .strip()
+            .lower()
+        )
+        torque_off = dt in ("true", "1", "yes", "on")
+        start_tc = (tc in ("true", "1", "yes", "on")) and not torque_off
 
-    start_spawners_after_manager = RegisterEventHandler(
-        OnProcessStart(
-            target_action=controller_manager,
-            on_start=[
-                joint_state_broadcaster_spawner,
-                arm_controller_spawner,
-                gripper_controller_spawner,
+        joint_state_broadcaster_spawner = Node(
+            package="controller_manager",
+            executable="spawner",
+            arguments=[
+                "joint_state_broadcaster",
+                "--controller-manager",
+                "/controller_manager",
             ],
         )
-    )
+        arm_controller_spawner = Node(
+            package="controller_manager",
+            executable="spawner",
+            arguments=["arm_controller", "--controller-manager", "/controller_manager"],
+        )
+        gripper_controller_spawner = Node(
+            package="controller_manager",
+            executable="spawner",
+            arguments=["gripper_controller", "--controller-manager", "/controller_manager"],
+        )
+
+        on_start = [joint_state_broadcaster_spawner]
+        if start_tc:
+            on_start.extend([arm_controller_spawner, gripper_controller_spawner])
+
+        return [
+            RegisterEventHandler(
+                OnProcessStart(
+                    target_action=controller_manager,
+                    on_start=on_start,
+                )
+            )
+        ]
 
     return LaunchDescription(
         [
             follower_serial_port_arg,
+            start_trajectory_controllers_arg,
+            disable_servo_torque_arg,
             robot_state_publisher_node,
             configure_feetech_bus,
             start_controller_manager_after_config,
-            start_spawners_after_manager,
+            OpaqueFunction(function=register_conditional_spawners),
         ]
     )

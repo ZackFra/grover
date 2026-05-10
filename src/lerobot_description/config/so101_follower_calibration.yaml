@@ -1,0 +1,78 @@
+# Canonical SO-101 follower Feetech calibration for this workspace.
+# Referenced by urdf/so101_ros2_control.xacro via xacro.load_yaml (single source of truth).
+# lerobot_controller/config/hardware/follower_joints.yaml → symlink to this file.
+#
+# Refresh LeRobot gi_jane.json after edits:
+#   python3 $(ros2 pkg prefix lerobot_description)/lib/lerobot_description/so101_calibration_export_gi_jane.py -i $(ros2 pkg prefix lerobot_description)/share/lerobot_description/config/so101_follower_calibration.yaml -o config/robots/so_follower/gi_jane.json
+#
+# Schema mirrors upstream legalaspro/so101-ros-physical-ai follower_joints.yaml.
+
+joints:
+  shoulder_pan:
+    id: 1
+    homing_offset: 2087
+    range_min: 762
+    range_max: 3477
+    p_coefficient: 16
+    i_coefficient: 0
+    d_coefficient: 32
+    return_delay_time: 0
+    acceleration: 254
+
+  shoulder_lift:
+    id: 2
+    homing_offset: 2592
+    range_min: 1372
+    range_max: 3774
+    p_coefficient: 16
+    i_coefficient: 0
+    d_coefficient: 32
+    return_delay_time: 0
+    acceleration: 254
+
+  elbow_flex:
+    id: 3
+    homing_offset: 2040
+    range_min: 839
+    range_max: 3071
+    p_coefficient: 16
+    i_coefficient: 0
+    d_coefficient: 32
+    return_delay_time: 0
+    acceleration: 254
+
+  wrist_flex:
+    id: 4
+    homing_offset: 1404
+    range_min: 125
+    range_max: 2512
+    p_coefficient: 16
+    i_coefficient: 0
+    d_coefficient: 32
+    return_delay_time: 0
+    acceleration: 254
+
+  wrist_roll:
+    id: 5
+    homing_offset: 2060
+    range_min: 0
+    range_max: 4095
+    p_coefficient: 16
+    i_coefficient: 0
+    d_coefficient: 32
+    return_delay_time: 0
+    acceleration: 254
+
+  gripper_joint:
+    id: 6
+    homing_offset: 1554
+    range_min: 1416
+    range_max: 2923
+    p_coefficient: 16
+    i_coefficient: 0
+    d_coefficient: 32
+    return_delay_time: 0
+    acceleration: 254
+    max_torque_limit: 500
+    protection_current: 250
+    overload_torque: 25

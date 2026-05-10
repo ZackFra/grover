@@ -18,9 +18,26 @@ def generate_launch_description():
         default_value="/dev/so101_follower",
         description="Follower serial device used by mandatory pre-configure on real hardware.",
     )
+    start_trajectory_controllers_arg = DeclareLaunchArgument(
+        "start_trajectory_controllers",
+        default_value="true",
+        description=(
+            "Hardware only: set false to skip arm/gripper trajectory controllers "
+            "(joint_state_broadcaster only — less stiff holding while debugging)."
+        ),
+    )
+    disable_servo_torque_arg = DeclareLaunchArgument(
+        "disable_servo_torque",
+        default_value="false",
+        description=(
+            "Hardware only: true = Feetech torque off (passive joints), for posing/calibration by hand."
+        ),
+    )
 
     is_sim = LaunchConfiguration("is_sim")
     follower_serial_port = LaunchConfiguration("follower_serial_port")
+    start_trajectory_controllers = LaunchConfiguration("start_trajectory_controllers")
+    disable_servo_torque = LaunchConfiguration("disable_servo_torque")
 
     moveit_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -33,6 +50,7 @@ def generate_launch_description():
         launch_arguments={
             "is_sim": is_sim,
             "follower_serial_port": follower_serial_port,
+            "disable_servo_torque": disable_servo_torque,
         }.items(),
     )
 
@@ -69,7 +87,11 @@ def generate_launch_description():
                         "so101_controller_hw.launch.py",
                     )
                 ),
-                launch_arguments={"follower_serial_port": follower_serial_port}.items(),
+                launch_arguments={
+                    "follower_serial_port": follower_serial_port,
+                    "start_trajectory_controllers": start_trajectory_controllers,
+                    "disable_servo_torque": disable_servo_torque,
+                }.items(),
             )
         ]
 
@@ -77,6 +99,8 @@ def generate_launch_description():
         [
             is_sim_arg,
             follower_serial_port_arg,
+            start_trajectory_controllers_arg,
+            disable_servo_torque_arg,
             OpaqueFunction(function=_select_controller_launch),
             moveit_launch,
         ]

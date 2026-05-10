@@ -3,6 +3,8 @@
 
     <xacro:arg name="use_sim" default="true"/>
     <xacro:arg name="usb_port" default="/dev/so101_follower"/>
+    <!-- Hardware: state-only ros2_control joints → Feetech driver disables torque (see feetech_ros2_driver on_init). -->
+    <xacro:arg name="hardware_passive" default="false"/>
 
     <xacro:include filename="$(find lerobot_description)/urdf/so101_base.xacro"/>
 

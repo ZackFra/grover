@@ -3,9 +3,54 @@
     <!-- Args duplicated here so $(arg ...) resolves when this file is processed. -->
     <xacro:arg name="use_sim" default="true"/>
     <xacro:arg name="usb_port" default="/dev/so101_follower"/>
+    <xacro:arg name="hardware_passive" default="false"/>
 
-    <!-- Homing offsets from config/robots/so_follower/gi_jane.json (Feetech raw encoder). -->
+    <!--
+      Hardware calibration: config/so101_follower_calibration.yaml (xacro.load_yaml).
+      Export LeRobot gi_jane.json via python3 …/lib/lerobot_description/so101_calibration_export_gi_jane.py (see YAML header).
+      Feetech driver reads id, offset, p_cofficient / i_cofficient / d_cofficient (spellings as in driver).
+    -->
     <xacro:property name="use_sim_true" value="${'$(arg use_sim)' in ('true', 'True', '1', 'yes')}"/>
+    <xacro:property name="hw_passive_true" value="${'$(arg hardware_passive)' in ('true', 'True', '1', 'yes')}"/>
+    <xacro:property name="cal" value="${xacro.load_yaml('$(find lerobot_description)/config/so101_follower_calibration.yaml')}"/>
+
+    <!-- feetech_ros2_driver: joints with no command_interfaces get torque disabled on init. -->
+    <xacro:macro name="feetech_revolute_joint" params="name id offset p:=16 i:=0 d:=32 rd:=0 acc:=254">
+        <joint name="${name}">
+            <param name="id">${id}</param>
+            <param name="offset">${offset}</param>
+            <param name="p_cofficient">${p}</param>
+            <param name="i_cofficient">${i}</param>
+            <param name="d_cofficient">${d}</param>
+            <param name="return_delay_time">${rd}</param>
+            <param name="acceleration">${acc}</param>
+            <xacro:unless value="${hw_passive_true}">
+                <command_interface name="position"/>
+            </xacro:unless>
+            <state_interface name="position"/>
+            <state_interface name="velocity"/>
+        </joint>
+    </xacro:macro>
+
+    <xacro:macro name="feetech_gripper_joint" params="name id offset p:=16 i:=0 d:=32 rd:=0 acc:=254 mt:=500 pc:=250 ot:=25">
+        <joint name="${name}">
+            <param name="id">${id}</param>
+            <param name="offset">${offset}</param>
+            <param name="p_cofficient">${p}</param>
+            <param name="i_cofficient">${i}</param>
+            <param name="d_cofficient">${d}</param>
+            <param name="return_delay_time">${rd}</param>
+            <param name="acceleration">${acc}</param>
+            <param name="max_torque_limit">${mt}</param>
+            <param name="protection_current">${pc}</param>
+            <param name="overload_torque">${ot}</param>
+            <xacro:unless value="${hw_passive_true}">
+                <command_interface name="position"/>
+            </xacro:unless>
+            <state_interface name="position"/>
+            <state_interface name="velocity"/>
+        </joint>
+    </xacro:macro>
 
     <xacro:if value="${use_sim_true}">
         <ros2_control name="RobotSystem" type="system">
@@ -70,65 +115,12 @@
                 <param name="usb_port">$(arg usb_port)</param>
             </hardware>
 
-            <joint name="shoulder_pan">
-                <param name="initial_position">0.0</param>
-                <param name="id">1</param>
-                <param name="p_cofficient">8</param>
-                <param name="offset">-1613</param>
-                <command_interface name="position"/>
-                <state_interface name="position"/>
-                <state_interface name="velocity"/>
-            </joint>
-
-            <joint name="shoulder_lift">
-                <param name="initial_position">0.0</param>
-                <param name="id">2</param>
-                <param name="p_cofficient">16</param>
-                <param name="offset">-1373</param>
-                <command_interface name="position"/>
-                <state_interface name="position"/>
-                <state_interface name="velocity"/>
-            </joint>
-
-            <joint name="elbow_flex">
-                <param name="initial_position">0.0</param>
-                <param name="id">3</param>
-                <param name="p_cofficient">16</param>
-                <param name="offset">1681</param>
-                <command_interface name="position"/>
-                <state_interface name="position"/>
-                <state_interface name="velocity"/>
-            </joint>
-
-            <joint name="wrist_flex">
-                <param name="initial_position">0.0</param>
-                <param name="id">4</param>
-                <param name="p_cofficient">16</param>
-                <param name="offset">-1283</param>
-                <command_interface name="position"/>
-                <state_interface name="position"/>
-                <state_interface name="velocity"/>
-            </joint>
-
-            <joint name="wrist_roll">
-                <param name="initial_position">0.0</param>
-                <param name="id">5</param>
-                <param name="p_cofficient">16</param>
-                <param name="offset">-471</param>
-                <command_interface name="position"/>
-                <state_interface name="position"/>
-                <state_interface name="velocity"/>
-            </joint>
-
-            <joint name="gripper_joint">
-                <param name="initial_position">0.0</param>
-                <param name="id">6</param>
-                <param name="p_cofficient">16</param>
-                <param name="offset">-1842</param>
-                <command_interface name="position"/>
-                <state_interface name="position"/>
-                <state_interface name="velocity"/>
-            </joint>
+            <xacro:feetech_revolute_joint name="shoulder_pan" id="${str(cal['joints']['shoulder_pan']['id'])}" offset="${str(cal['joints']['shoulder_pan']['homing_offset'])}" p="${str(cal['joints']['shoulder_pan']['p_coefficient'])}" i="${str(cal['joints']['shoulder_pan']['i_coefficient'])}" d="${str(cal['joints']['shoulder_pan']['d_coefficient'])}" rd="${str(cal['joints']['shoulder_pan']['return_delay_time'])}" acc="${str(cal['joints']['shoulder_pan']['acceleration'])}" />
+            <xacro:feetech_revolute_joint name="shoulder_lift" id="${str(cal['joints']['shoulder_lift']['id'])}" offset="${str(cal['joints']['shoulder_lift']['homing_offset'])}" p="${str(cal['joints']['shoulder_lift']['p_coefficient'])}" i="${str(cal['joints']['shoulder_lift']['i_coefficient'])}" d="${str(cal['joints']['shoulder_lift']['d_coefficient'])}" rd="${str(cal['joints']['shoulder_lift']['return_delay_time'])}" acc="${str(cal['joints']['shoulder_lift']['acceleration'])}" />
+            <xacro:feetech_revolute_joint name="elbow_flex" id="${str(cal['joints']['elbow_flex']['id'])}" offset="${str(cal['joints']['elbow_flex']['homing_offset'])}" p="${str(cal['joints']['elbow_flex']['p_coefficient'])}" i="${str(cal['joints']['elbow_flex']['i_coefficient'])}" d="${str(cal['joints']['elbow_flex']['d_coefficient'])}" rd="${str(cal['joints']['elbow_flex']['return_delay_time'])}" acc="${str(cal['joints']['elbow_flex']['acceleration'])}" />
+            <xacro:feetech_revolute_joint name="wrist_flex" id="${str(cal['joints']['wrist_flex']['id'])}" offset="${str(cal['joints']['wrist_flex']['homing_offset'])}" p="${str(cal['joints']['wrist_flex']['p_coefficient'])}" i="${str(cal['joints']['wrist_flex']['i_coefficient'])}" d="${str(cal['joints']['wrist_flex']['d_coefficient'])}" rd="${str(cal['joints']['wrist_flex']['return_delay_time'])}" acc="${str(cal['joints']['wrist_flex']['acceleration'])}" />
+            <xacro:feetech_revolute_joint name="wrist_roll" id="${str(cal['joints']['wrist_roll']['id'])}" offset="${str(cal['joints']['wrist_roll']['homing_offset'])}" p="${str(cal['joints']['wrist_roll']['p_coefficient'])}" i="${str(cal['joints']['wrist_roll']['i_coefficient'])}" d="${str(cal['joints']['wrist_roll']['d_coefficient'])}" rd="${str(cal['joints']['wrist_roll']['return_delay_time'])}" acc="${str(cal['joints']['wrist_roll']['acceleration'])}" />
+            <xacro:feetech_gripper_joint name="gripper_joint" id="${str(cal['joints']['gripper_joint']['id'])}" offset="${str(cal['joints']['gripper_joint']['homing_offset'])}" p="${str(cal['joints']['gripper_joint']['p_coefficient'])}" i="${str(cal['joints']['gripper_joint']['i_coefficient'])}" d="${str(cal['joints']['gripper_joint']['d_coefficient'])}" rd="${str(cal['joints']['gripper_joint']['return_delay_time'])}" acc="${str(cal['joints']['gripper_joint']['acceleration'])}" mt="${str(cal['joints']['gripper_joint']['max_torque_limit'])}" pc="${str(cal['joints']['gripper_joint']['protection_current'])}" ot="${str(cal['joints']['gripper_joint']['overload_torque'])}" />
         </ros2_control>
     </xacro:unless>
 

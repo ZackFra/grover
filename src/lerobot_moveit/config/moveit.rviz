@@ -63,38 +63,10 @@ Visualization Manager:
       Links:
         All Links Enabled:
           {}
-        Base:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
         Expand Joint Details: false
         Expand Link Details: false
         Expand Tree: false
-        Fixed_Gripper:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
         Link Tree Style: Links in Alphabetic Order
-        Lower_Arm:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        Moving_Jaw:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        Shoulder_Rotation_Pitch:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        Upper_Arm:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        Wrist_Pitch_Roll:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
       Mass Properties:
         Inertia: false
         Mass: false
@@ -106,7 +78,7 @@ Visualization Manager:
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
-    Fixed Frame: base
+    Fixed Frame: world
     Frame Rate: 30
   Name: root
   Tools:
