@@ -17,15 +17,18 @@ def generate_launch_description():
     )
     follower_serial_port = LaunchConfiguration("follower_serial_port")
 
+    urdf_xacro = os.path.join(
+        get_package_share_directory("lerobot_description"),
+        "urdf",
+        "so101.urdf.xacro",
+    )
     robot_description = ParameterValue(
         Command(
             [
                 "xacro ",
-                os.path.join(
-                    get_package_share_directory("lerobot_description"),
-                    "urdf",
-                    "so101.urdf.xacro",
-                ),
+                urdf_xacro,
+                " use_sim:=false usb_port:=",
+                follower_serial_port,
             ]
         ),
         value_type=str,

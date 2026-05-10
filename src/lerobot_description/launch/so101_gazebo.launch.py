@@ -27,11 +27,15 @@ def generate_launch_description():
             ]
         )
     
-    robot_description = ParameterValue(Command([
-            "xacro ",
-            LaunchConfiguration("model"),
-        ]),
-        value_type=str
+    robot_description = ParameterValue(
+        Command(
+            [
+                "xacro ",
+                LaunchConfiguration("model"),
+                " use_sim:=true",
+            ]
+        ),
+        value_type=str,
     )
 
     robot_state_publisher_node = Node(

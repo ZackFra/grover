@@ -30,7 +30,10 @@ def generate_launch_description():
                 "so101_moveit.launch.py",
             )
         ),
-        launch_arguments={"is_sim": is_sim}.items(),
+        launch_arguments={
+            "is_sim": is_sim,
+            "follower_serial_port": follower_serial_port,
+        }.items(),
     )
 
     def _select_controller_launch(context):

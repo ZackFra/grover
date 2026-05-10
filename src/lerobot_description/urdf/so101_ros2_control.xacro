@@ -1,59 +1,135 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <!-- Args duplicated here so $(arg ...) resolves when this file is processed. -->
+    <xacro:arg name="use_sim" default="true"/>
+    <xacro:arg name="usb_port" default="/dev/so101_follower"/>
 
-    <ros2_control name="RobotSystem" type="system">
-        <!-- ros2_control Gazebo -->
-        <hardware>
-            <plugin>gz_ros2_control/GazeboSimSystem</plugin>
-        </hardware>
+    <!-- Homing offsets from config/robots/so_follower/gi_jane.json (Feetech raw encoder). -->
+    <xacro:property name="use_sim_true" value="${'$(arg use_sim)' in ('true', 'True', '1', 'yes')}"/>
 
-        <joint name="shoulder_pan">
-            <command_interface name="position">
-                <param name="min">-1.91986</param>
-                <param name="max">1.91986</param>
-            </command_interface>
-            <state_interface name="position" />
-        </joint>
+    <xacro:if value="${use_sim_true}">
+        <ros2_control name="RobotSystem" type="system">
+            <hardware>
+                <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+            </hardware>
 
-        <joint name="shoulder_lift">
-            <command_interface name="position">
-                <param name="min">-2.05</param>
-                <param name="max">1.74533</param>
-            </command_interface>
-            <state_interface name="position" />
-        </joint>
+            <joint name="shoulder_pan">
+                <command_interface name="position">
+                    <param name="min">-1.91986</param>
+                    <param name="max">1.91986</param>
+                </command_interface>
+                <state_interface name="position"/>
+            </joint>
 
-        <joint name="elbow_flex">
-            <command_interface name="position">
-                <param name="min">-1.74533</param>
-                <param name="max">1.85</param>
-            </command_interface>
-            <state_interface name="position" />
-        </joint>
+            <joint name="shoulder_lift">
+                <command_interface name="position">
+                    <param name="min">-2.05</param>
+                    <param name="max">1.74533</param>
+                </command_interface>
+                <state_interface name="position"/>
+            </joint>
 
-        <joint name="wrist_flex">
-            <command_interface name="position">
-                <param name="min">-1.65806</param>
-                <param name="max">1.65806</param>
-            </command_interface>
-            <state_interface name="position" />
-        </joint>
+            <joint name="elbow_flex">
+                <command_interface name="position">
+                    <param name="min">-1.74533</param>
+                    <param name="max">1.85</param>
+                </command_interface>
+                <state_interface name="position"/>
+            </joint>
 
-        <joint name="wrist_roll">
-            <command_interface name="position">
-                <param name="min">-2.79253</param>
-                <param name="max">2.79253</param>
-            </command_interface>
-            <state_interface name="position" />
-        </joint>
+            <joint name="wrist_flex">
+                <command_interface name="position">
+                    <param name="min">-1.65806</param>
+                    <param name="max">1.65806</param>
+                </command_interface>
+                <state_interface name="position"/>
+            </joint>
 
-        <joint name="gripper_joint">
-            <command_interface name="position">
-                <param name="min">-0.22</param>
-                <param name="max">1.74533</param>
-            </command_interface>
-            <state_interface name="position" />
-        </joint>
-    </ros2_control>
+            <joint name="wrist_roll">
+                <command_interface name="position">
+                    <param name="min">-2.79253</param>
+                    <param name="max">2.79253</param>
+                </command_interface>
+                <state_interface name="position"/>
+            </joint>
+
+            <joint name="gripper_joint">
+                <command_interface name="position">
+                    <param name="min">-0.22</param>
+                    <param name="max">1.74533</param>
+                </command_interface>
+                <state_interface name="position"/>
+            </joint>
+        </ros2_control>
+    </xacro:if>
+
+    <xacro:unless value="${use_sim_true}">
+        <ros2_control name="RobotSystem" type="system">
+            <hardware>
+                <plugin>feetech_ros2_driver/FeetechHardwareInterface</plugin>
+                <param name="usb_port">$(arg usb_port)</param>
+            </hardware>
+
+            <joint name="shoulder_pan">
+                <param name="initial_position">0.0</param>
+                <param name="id">1</param>
+                <param name="p_cofficient">8</param>
+                <param name="offset">-1613</param>
+                <command_interface name="position"/>
+                <state_interface name="position"/>
+                <state_interface name="velocity"/>
+            </joint>
+
+            <joint name="shoulder_lift">
+                <param name="initial_position">0.0</param>
+                <param name="id">2</param>
+                <param name="p_cofficient">16</param>
+                <param name="offset">-1373</param>
+                <command_interface name="position"/>
+                <state_interface name="position"/>
+                <state_interface name="velocity"/>
+            </joint>
+
+            <joint name="elbow_flex">
+                <param name="initial_position">0.0</param>
+                <param name="id">3</param>
+                <param name="p_cofficient">16</param>
+                <param name="offset">1681</param>
+                <command_interface name="position"/>
+                <state_interface name="position"/>
+                <state_interface name="velocity"/>
+            </joint>
+
+            <joint name="wrist_flex">
+                <param name="initial_position">0.0</param>
+                <param name="id">4</param>
+                <param name="p_cofficient">16</param>
+                <param name="offset">-1283</param>
+                <command_interface name="position"/>
+                <state_interface name="position"/>
+                <state_interface name="velocity"/>
+            </joint>
+
+            <joint name="wrist_roll">
+                <param name="initial_position">0.0</param>
+                <param name="id">5</param>
+                <param name="p_cofficient">16</param>
+                <param name="offset">-471</param>
+                <command_interface name="position"/>
+                <state_interface name="position"/>
+                <state_interface name="velocity"/>
+            </joint>
+
+            <joint name="gripper_joint">
+                <param name="initial_position">0.0</param>
+                <param name="id">6</param>
+                <param name="p_cofficient">16</param>
+                <param name="offset">-1842</param>
+                <command_interface name="position"/>
+                <state_interface name="position"/>
+                <state_interface name="velocity"/>
+            </joint>
+        </ros2_control>
+    </xacro:unless>
 
 </robot>
