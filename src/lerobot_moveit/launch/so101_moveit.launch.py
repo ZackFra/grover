@@ -50,6 +50,12 @@ def generate_launch_description():
             )
             .robot_description_semantic(file_path="config/so101.srdf")
             .trajectory_execution(file_path="config/moveit_controllers.yaml")
+            # Only OMPL: avoids RViz / default picking Pilz with empty planner_id (PTP/LIN/CIRC).
+            .planning_pipelines(
+                default_planning_pipeline="ompl",
+                pipelines=["ompl"],
+                load_all=False,
+            )
             .to_moveit_configs()
         )
 

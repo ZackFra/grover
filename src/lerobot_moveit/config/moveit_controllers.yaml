@@ -1,4 +1,11 @@
 # connect moveit with ros2_contol
+trajectory_execution:
+  allowed_execution_duration_scaling: 1.2
+  allowed_goal_duration_margin: 0.5
+  # rad; default 0.01 is tight on real hardware (Plan vs Execute delay, encoders)
+  allowed_start_tolerance: 0.05
+  execution_duration_monitoring: true
+
 moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
 
 # define the controller used in ros2_control
