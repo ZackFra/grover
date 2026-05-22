@@ -381,7 +381,8 @@
 		<parent link="lower_arm" />
 		<child link="wrist" />
 		<axis xyz="0 0 1" />
-		<limit effort="10" velocity="10" lower="-1.65806" upper="1.65806" />
+		<!-- Widened from ±1.658 (±95°): leader teleop reaches past stock; avoids Servo limit spam. -->
+		<limit effort="10" velocity="10" lower="-1.74533" upper="1.74533" />
 	</joint>
 
 	<!-- Joint from upper_arm to lower_arm -->
@@ -400,7 +401,8 @@
 		<parent link="shoulder" />
 		<child link="upper_arm" />
 		<axis xyz="0 0 1" />
-		<limit effort="10" velocity="10" lower="-2.05" upper="1.74533" />
+		<!-- Lower widened for HW teleop (home ≈ −1.75 rad; stock −2.05 left little “back” travel). -->
+		<limit effort="10" velocity="10" lower="-2.35" upper="1.74533" />
 	</joint>
 
 	<!-- Joint from base to shoulder -->

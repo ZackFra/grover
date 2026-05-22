@@ -1,39 +1,41 @@
 # joint_limits.yaml allows the dynamics properties specified in the URDF to be overwritten or augmented as needed
 #
-# You can always specify higher scaling factors (<= 1.0) in your motion requests.  # Increase the values below to 1.0 to always move at maximum speed.
-default_velocity_scaling_factor: 0.1
-default_acceleration_scaling_factor: 0.1
+# Used by MoveIt Motion Planning (RViz drag/plan), not joint_jog teleop. Raise for faster planned moves.
+default_velocity_scaling_factor: 0.5
+default_acceleration_scaling_factor: 0.5
 
 # Specific joint properties can be changed with the keys [max_position, min_position, max_velocity, max_acceleration]
 # [min_position, max_position] are simply copied from the robot's URDF and thus can be changed arbitrarily
+# NOTE: Servo's AccelerationLimitedPlugin caps how fast it can change velocity.
+# 100 rad/s^2 = 0 → 10 rad/s in 100 ms — sweet spot for SO-101 teleop.
 joint_limits:
   shoulder_pan:
     has_velocity_limits: true
     max_velocity: 10.0
     has_acceleration_limits: true
-    max_acceleration: 5.0
+    max_acceleration: 100.0
   shoulder_lift:
     has_velocity_limits: true
     max_velocity: 10.0
     has_acceleration_limits: true
-    max_acceleration: 5.0
+    max_acceleration: 100.0
   elbow_flex:
     has_velocity_limits: true
     max_velocity: 10.0
     has_acceleration_limits: true
-    max_acceleration: 5.0
+    max_acceleration: 100.0
   wrist_flex:
     has_velocity_limits: true
     max_velocity: 10.0
     has_acceleration_limits: true
-    max_acceleration: 5.0
+    max_acceleration: 100.0
   wrist_roll:
     has_velocity_limits: true
     max_velocity: 10.0
     has_acceleration_limits: true
-    max_acceleration: 5.0
+    max_acceleration: 100.0
   gripper_joint:
     has_velocity_limits: true
     max_velocity: 10.0
     has_acceleration_limits: true
-    max_acceleration: 5.0
+    max_acceleration: 100.0

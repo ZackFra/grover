@@ -8,6 +8,7 @@ from launch.actions import (
     IncludeLaunchDescription,
     OpaqueFunction,
     RegisterEventHandler,
+    TimerAction,
 )
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -18,6 +19,8 @@ _CONFIGURE_SCRIPT = os.path.join(
     "scripts",
     "configure_so101_follower_bus.py",
 )
+
+_MOVEIT_DELAY_S = 3.0
 
 
 def generate_launch_description():
@@ -35,7 +38,7 @@ def generate_launch_description():
         "start_trajectory_controllers",
         default_value="true",
         description=(
-            "Hardware only: set false to skip arm/gripper trajectory controllers "
+            "Hardware only: set false to skip arm/gripper controllers "
             "(joint_state_broadcaster only — less stiff holding while debugging)."
         ),
     )
@@ -90,6 +93,7 @@ def generate_launch_description():
                         )
                     )
                 ),
+                moveit_launch,
             ]
 
         port = follower_serial_port.perform(context).strip()
@@ -111,12 +115,13 @@ def generate_launch_description():
                 "disable_servo_torque": disable_servo_torque,
             }.items(),
         )
+        moveit_delayed = TimerAction(period=_MOVEIT_DELAY_S, actions=[moveit_launch])
         return [
             configure_feetech,
             RegisterEventHandler(
                 OnProcessExit(
                     target_action=configure_feetech,
-                    on_exit=[hw_launch],
+                    on_exit=[hw_launch, moveit_delayed],
                 )
             ),
         ]
@@ -128,6 +133,5 @@ def generate_launch_description():
             start_trajectory_controllers_arg,
             disable_servo_torque_arg,
             OpaqueFunction(function=_select_controller_launch),
-            moveit_launch,
         ]
     )

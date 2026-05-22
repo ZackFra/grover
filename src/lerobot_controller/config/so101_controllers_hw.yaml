@@ -1,9 +1,9 @@
 # Hardware follower: ForwardCommandController (JTC on_activate segfaults with Feetech on Jazzy).
-# Teleop: --robot.action_type=joint_position (scripts/lerobot-teleop.sh).
+# Teleop: --robot.action_type=joint_jog → MoveIt Servo → /arm_controller/commands
 
 controller_manager:
   ros__parameters:
-    update_rate: 50 # Hz
+    update_rate: 100 # Hz
 
     arm_controller:
       type: forward_command_controller/ForwardCommandController

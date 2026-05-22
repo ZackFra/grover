@@ -1,5 +1,6 @@
 import os
 
+import yaml
 from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchDescription
@@ -23,18 +24,14 @@ def generate_launch_description():
         description="Must match hardware launch: passive ros2_control joints / torque off.",
     )
 
-    def launch_moveit_and_rviz(context):
-        """Resolve use_sim_time here so RViz and move_group use real booleans (not LaunchSubstitution).
-
-        With Gazebo, TF and /joint_states use simulation time from /clock. If RViz uses wall
-        time, TF lookups fail and the RobotModel appears collapsed or wrongly oriented — URDF
-        edits look like they have no effect.
-        """
+    def launch_moveit_rviz_servo(context):
+        """move_group + RViz + servo_node (joint jog teleop via lerobot_ros action_type=joint_jog)."""
         is_sim_str = LaunchConfiguration("is_sim").perform(context).strip().lower()
         use_sim_time = is_sim_str in ("true", "1", "yes", "on")
+        is_sim_mode = use_sim_time  # Gazebo bringup sets is_sim true
 
         follower_serial_port = LaunchConfiguration("follower_serial_port")
-
+        pkg_share = get_package_share_directory("lerobot_moveit")
         lerobot_description_dir = get_package_share_directory("lerobot_description")
         so101_urdf_path = os.path.join(lerobot_description_dir, "urdf", "so101.urdf.xacro")
 
@@ -50,7 +47,6 @@ def generate_launch_description():
             )
             .robot_description_semantic(file_path="config/so101.srdf")
             .trajectory_execution(file_path="config/moveit_controllers.yaml")
-            # Only OMPL: avoids RViz / default picking Pilz with empty planner_id (PTP/LIN/CIRC).
             .planning_pipelines(
                 default_planning_pipeline="ompl",
                 pipelines=["ompl"],
@@ -58,6 +54,16 @@ def generate_launch_description():
             )
             .to_moveit_configs()
         )
+
+        servo_yaml_name = "so101_servo_sim.yaml" if is_sim_mode else "so101_servo.yaml"
+        with open(os.path.join(pkg_share, "config", servo_yaml_name)) as f:
+            servo_yaml = yaml.safe_load(f)
+        servo_params = {"moveit_servo": servo_yaml}
+        # Required by online_signal_smoothing plugins (Butterworth / AccelerationLimited).
+        acceleration_filter_update_period = {
+            "update_period": float(servo_yaml["publish_period"]),
+        }
+        planning_group_name = {"planning_group_name": servo_yaml["move_group_name"]}
 
         move_group_node = Node(
             package="moveit_ros_move_group",
@@ -71,12 +77,23 @@ def generate_launch_description():
             arguments=["--ros-args", "--log-level", "info"],
         )
 
-        rviz_config_path = os.path.join(
-            get_package_share_directory("lerobot_moveit"),
-            "config",
-            "moveit.rviz",
+        servo_node = Node(
+            package="moveit_servo",
+            executable="servo_node",
+            output="screen",
+            parameters=[
+                servo_params,
+                acceleration_filter_update_period,
+                planning_group_name,
+                moveit_config.robot_description,
+                moveit_config.robot_description_semantic,
+                moveit_config.robot_description_kinematics,
+                moveit_config.joint_limits,
+                {"use_sim_time": use_sim_time},
+            ],
         )
 
+        rviz_config_path = os.path.join(pkg_share, "config", "moveit.rviz")
         rviz_node = Node(
             package="rviz2",
             executable="rviz2",
@@ -92,13 +109,13 @@ def generate_launch_description():
             ],
         )
 
-        return [move_group_node, rviz_node]
+        return [move_group_node, servo_node, rviz_node]
 
     return LaunchDescription(
         [
             is_sim_arg,
             follower_serial_port_arg,
             disable_servo_torque_arg,
-            OpaqueFunction(function=launch_moveit_and_rviz),
+            OpaqueFunction(function=launch_moveit_rviz_servo),
         ]
     )

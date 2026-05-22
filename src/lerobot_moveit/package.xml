@@ -15,6 +15,7 @@
   <exec_depend>rviz2</exec_depend>
   <exec_depend>lerobot_description</exec_depend>
   <exec_depend>moveit_config_utils</exec_depend>
+  <exec_depend>moveit_servo</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

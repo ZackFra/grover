@@ -1,0 +1,53 @@
+###############################################
+# MoveIt Servo — SO-101 HW (joint jog teleop → ForwardCommandController)
+# Tuned from MoveIt 2 defaults + UR servo template (Jazzy). See:
+#   /opt/ros/jazzy/share/moveit_servo/config/servo_parameters.yaml
+###############################################
+
+## Timing (match a steady command stream; teleop may be <30 Hz with display_data)
+publish_period: 0.01
+max_expected_latency: 0.1
+incoming_command_timeout: 0.5
+
+## Incoming joint jog (lerobot_ros publishes unitless velocities on ~/delta_joint_cmds)
+command_in_type: "unitless"
+scale:
+  linear: 0.2
+  rotational: 0.8
+  # Max joint velocity (rad/s) at unitless cmd = 1.0. URDF velocity limit is 10 rad/s.
+  joint: 10.0
+
+## Outgoing commands — must match so101_controllers_hw.yaml (position forward command)
+command_out_type: std_msgs/Float64MultiArray
+publish_joint_positions: true
+publish_joint_velocities: false
+publish_joint_accelerations: false
+
+## Smoothing (Butterworth is the stock MoveIt 2 plugin; avoids input/output fighting)
+use_smoothing: true
+smoothing_filter_plugin_name: "online_signal_smoothing::AccelerationLimitedPlugin"
+
+## Planning scene / frames (SO-101 base link is "base" in URDF)
+is_primary_planning_scene_monitor: false
+check_octomap_collisions: false
+move_group_name: arm
+
+## Singularity handling (MoveIt defaults; wide thresholds for small 5-DOF arm)
+lower_singularity_threshold: 17.0
+hard_stop_singularity_threshold: 30.0
+leaving_singularity_threshold_multiplier: 2.0
+# 0 — teleop already clips goals to URDF; Servo's own margin would only spam warnings at edges.
+joint_limit_margins: [0.0]
+
+## Topics
+cartesian_command_in_topic: ~/delta_twist_cmds
+joint_command_in_topic: ~/delta_joint_cmds
+joint_topic: /joint_states
+status_topic: ~/status
+command_out_topic: /arm_controller/commands
+
+## Collision checking — enable once teleop moves reliably (SRDF can HALT at rest if true)
+check_collisions: false
+collision_check_rate: 10.0
+self_collision_proximity_threshold: 0.02
+scene_collision_proximity_threshold: 0.02
