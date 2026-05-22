@@ -2,8 +2,8 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction, RegisterEventHandler
-from launch.event_handlers import OnProcessExit, OnProcessStart
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, RegisterEventHandler
+from launch.event_handlers import OnProcessStart
 from launch.substitutions import Command, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
@@ -13,13 +13,13 @@ def generate_launch_description():
     follower_serial_port_arg = DeclareLaunchArgument(
         "follower_serial_port",
         default_value="/dev/so101_follower",
-        description="Feetech follower serial port used for mandatory pre-configure.",
+        description="Feetech follower serial port (xacro usb_port).",
     )
     start_trajectory_controllers_arg = DeclareLaunchArgument(
         "start_trajectory_controllers",
         default_value="true",
         description=(
-            "If false, only joint_state_broadcaster is loaded — no arm/gripper trajectory "
+            "If false, only joint_state_broadcaster is loaded — no arm/gripper "
             "controllers holding position (less stiff while debugging offsets / RViz)."
         ),
     )
@@ -62,30 +62,13 @@ def generate_launch_description():
         package="controller_manager",
         executable="ros2_control_node",
         parameters=[
-            {"use_sim_time": False},
+            {"robot_description": robot_description, "use_sim_time": False},
             os.path.join(
                 get_package_share_directory("lerobot_controller"),
                 "config",
-                "so101_controllers.yaml",
+                "so101_controllers_hw.yaml",
             ),
         ],
-    )
-
-    configure_feetech_bus = ExecuteProcess(
-        cmd=[
-            "python3",
-            "-m",
-            "lerobot_robot_ros.so101_follower_bus_configure",
-            follower_serial_port,
-        ],
-        output="screen",
-    )
-
-    start_controller_manager_after_config = RegisterEventHandler(
-        OnProcessExit(
-            target_action=configure_feetech_bus,
-            on_exit=[controller_manager],
-        )
     )
 
     def register_conditional_spawners(context):
@@ -143,8 +126,7 @@ def generate_launch_description():
             start_trajectory_controllers_arg,
             disable_servo_torque_arg,
             robot_state_publisher_node,
-            configure_feetech_bus,
-            start_controller_manager_after_config,
+            controller_manager,
             OpaqueFunction(function=register_conditional_spawners),
         ]
     )

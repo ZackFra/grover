@@ -1,0 +1,6 @@
+# Applied automatically for every `colcon` command run from this workspace root.
+# See: https://colcon.readthedocs.io/en/released/user/configuration.html
+
+build:
+  packages-skip:
+    - librealsense2

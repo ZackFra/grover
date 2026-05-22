@@ -1,0 +1,31 @@
+# Hardware follower: ForwardCommandController (JTC on_activate segfaults with Feetech on Jazzy).
+# Teleop: --robot.action_type=joint_position (scripts/lerobot-teleop.sh).
+
+controller_manager:
+  ros__parameters:
+    update_rate: 50 # Hz
+
+    arm_controller:
+      type: forward_command_controller/ForwardCommandController
+
+    gripper_controller:
+      type: forward_command_controller/ForwardCommandController
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+arm_controller:
+  ros__parameters:
+    joints:
+      - "shoulder_pan"
+      - "shoulder_lift"
+      - "elbow_flex"
+      - "wrist_flex"
+      - "wrist_roll"
+    interface_name: position
+
+gripper_controller:
+  ros__parameters:
+    joints:
+      - "gripper_joint"
+    interface_name: position
