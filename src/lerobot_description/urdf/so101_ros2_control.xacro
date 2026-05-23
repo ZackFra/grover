@@ -53,6 +53,14 @@
     </xacro:macro>
 
     <xacro:if value="${use_sim_true}">
+        <!--
+          gz_ros2_control reads <param name="initial_value"> on each state_interface
+          to set Gazebo's starting joint pose. Values match initial_positions.yaml
+          (lerobot leader safe-close pose) so the follower in sim starts aligned
+          with the leader at teleop start. Without these, the follower starts at 0
+          while the leader is at ~-100 deg shoulder_lift, which slams MoveIt Servo's
+          AccelerationLimitedPlugin smoother on cycle 1 and produces NaN commands.
+        -->
         <ros2_control name="RobotSystem" type="system">
             <hardware>
                 <plugin>gz_ros2_control/GazeboSimSystem</plugin>
@@ -63,7 +71,9 @@
                     <param name="min">-1.91986</param>
                     <param name="max">1.91986</param>
                 </command_interface>
-                <state_interface name="position"/>
+                <state_interface name="position">
+                    <param name="initial_value">0.090527</param>
+                </state_interface>
             </joint>
 
             <joint name="shoulder_lift">
@@ -71,7 +81,9 @@
                     <param name="min">-2.35</param>
                     <param name="max">1.74533</param>
                 </command_interface>
-                <state_interface name="position"/>
+                <state_interface name="position">
+                    <param name="initial_value">-1.74524</param>
+                </state_interface>
             </joint>
 
             <joint name="elbow_flex">
@@ -79,7 +91,9 @@
                     <param name="min">-1.74533</param>
                     <param name="max">1.85</param>
                 </command_interface>
-                <state_interface name="position"/>
+                <state_interface name="position">
+                    <param name="initial_value">1.5708</param>
+                </state_interface>
             </joint>
 
             <joint name="wrist_flex">
@@ -87,7 +101,9 @@
                     <param name="min">-1.74533</param>
                     <param name="max">1.74533</param>
                 </command_interface>
-                <state_interface name="position"/>
+                <state_interface name="position">
+                    <param name="initial_value">0.926751</param>
+                </state_interface>
             </joint>
 
             <joint name="wrist_roll">
@@ -95,7 +111,9 @@
                     <param name="min">-2.79253</param>
                     <param name="max">2.79253</param>
                 </command_interface>
-                <state_interface name="position"/>
+                <state_interface name="position">
+                    <param name="initial_value">0.278485</param>
+                </state_interface>
             </joint>
 
             <joint name="gripper_joint">
@@ -103,7 +121,9 @@
                     <param name="min">-0.22</param>
                     <param name="max">1.74533</param>
                 </command_interface>
-                <state_interface name="position"/>
+                <state_interface name="position">
+                    <param name="initial_value">-0.191775</param>
+                </state_interface>
             </joint>
         </ros2_control>
     </xacro:if>

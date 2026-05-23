@@ -1,5 +1,9 @@
 ###############################################
-# MoveIt Servo — SO-101 sim (joint jog → JointTrajectoryController)
+# MoveIt Servo — SO-101 sim (joint jog → ForwardCommandController)
+#
+# Mirrors so101_servo.yaml (HW). Sim's arm_controller is now FCC because JTC
+# segfaults on activate on Jazzy (see so101_controllers.yaml). Output must be
+# Float64MultiArray on /arm_controller/commands to match FCC's expected topic.
 ###############################################
 
 publish_period: 0.01
@@ -12,13 +16,17 @@ scale:
   rotational: 0.8
   joint: 10.0
 
-command_out_type: trajectory_msgs/JointTrajectory
+command_out_type: std_msgs/Float64MultiArray
 publish_joint_positions: true
-publish_joint_velocities: true
+publish_joint_velocities: false
 publish_joint_accelerations: false
 
-use_smoothing: true
-smoothing_filter_plugin_name: "online_signal_smoothing::AccelerationLimitedPlugin"
+# NOTE: AccelerationLimitedPlugin on Jazzy emits NaN on the first joint_jog cycle
+# (reproduced in sim with arm_controller dropping "Non-finite value received"
+# messages). Smoothing is disabled here; Gazebo's own position controller plus
+# the joint_jog_velocity_filter_alpha in lerobot-ros provide enough damping.
+use_smoothing: false
+# smoothing_filter_plugin_name: "online_signal_smoothing::AccelerationLimitedPlugin"
 
 is_primary_planning_scene_monitor: false
 check_octomap_collisions: false
@@ -33,7 +41,7 @@ cartesian_command_in_topic: ~/delta_twist_cmds
 joint_command_in_topic: ~/delta_joint_cmds
 joint_topic: /joint_states
 status_topic: ~/status
-command_out_topic: /arm_controller/joint_trajectory
+command_out_topic: /arm_controller/commands
 
 check_collisions: false
 collision_check_rate: 10.0

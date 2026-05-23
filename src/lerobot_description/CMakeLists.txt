@@ -19,7 +19,10 @@ install(
 )
 
 install(
-  PROGRAMS scripts/so101_calibration_export_gi_jane.py
+  PROGRAMS
+    scripts/so101_calibration_export_gi_jane.py
+    scripts/compute_link_inertia.py
+    scripts/rotate_rpy.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

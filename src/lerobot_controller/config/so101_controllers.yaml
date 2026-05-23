@@ -1,15 +1,23 @@
+# Sim follower: both arm_controller and gripper_controller use
+# ForwardCommandController, matching so101_controllers_hw.yaml.
+#
+# Why not JointTrajectoryController in sim?
+#   JTC segfaults inside on_activate on ROS 2 Jazzy for this arm regardless of
+#   open_loop_control / interpolate_from_desired_state / gains config (verified
+#   crash signature: null deref at +0x10 in JTC::on_activate). Same issue we hit
+#   on Feetech HW. Until upstream fixes it, MoveIt Servo (teleop) drives the arm
+#   directly via Float64MultiArray on /arm_controller/commands; MoveIt Plan &
+#   Execute (FollowJointTrajectory) is non-functional here.
+
 controller_manager:
   ros__parameters:
     update_rate: 50 # Hz
 
     arm_controller:
-      type: joint_trajectory_controller/JointTrajectoryController
-
-    # gripper_controller:
-    #   type: forward_command_controller/ForwardCommandController
+      type: forward_command_controller/ForwardCommandController
 
     gripper_controller:
-      type: joint_trajectory_controller/JointTrajectoryController
+      type: forward_command_controller/ForwardCommandController
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
@@ -22,27 +30,10 @@ arm_controller:
       - "elbow_flex"
       - "wrist_flex"
       - "wrist_roll"
-
-    command_interfaces:
-      - position
-
-    state_interfaces:
-      - position
-
-    open_loop_control: true
-    allow_integration_in_goal_trajectories: true
+    interface_name: position
 
 gripper_controller:
   ros__parameters:
     joints:
       - "gripper_joint"
     interface_name: position
-
-    command_interfaces:
-      - position
-
-    state_interfaces:
-      - position
-
-    open_loop_control: true
-    allow_integration_in_goal_trajectories: true

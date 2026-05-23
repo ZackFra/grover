@@ -8,6 +8,12 @@
 
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
+	<!--
+	  Intel RealSense D405 macro (apt: ros-jazzy-realsense2-description). Defines
+	  the `sensor_d405` xacro macro used below to attach the wrist camera frames.
+	-->
+	<xacro:include filename="$(find realsense2_description)/urdf/_d405.urdf.xacro" />
+
 	<!-- Links -->
 	<link name="world" />
 
@@ -291,11 +297,21 @@
 
 	<!-- Link gripper -->
 	<link name="gripper">
+		<!--
+		  Inertial composed via scripts/compute_link_inertia.py from:
+		    Wrist_Roll_D405_Holder.stl @ 0.42 g/cm³ (PLA ~20% infill) → 27.31 g holder body,
+		    plus an Intel RealSense D405 modeled as a 60 g uniform 42×42×23 mm box.
+		  TODO(d405-offset): payload xyz is a PLACEHOLDER (0, -0.040, 0.020) m. After
+		  RViz-verifying the holder mesh, measure the D405 body CoM offset on the
+		  holder pocket and re-run compute_link_inertia.py (see its docstring for
+		  the exact command). Wrong payload xyz mostly shows up as wrong off-diagonal
+		  inertia and incorrect CoM along the wrist axis.
+		-->
 		<inertial>
-			<origin xyz="0.000213627 0.000245138 -0.025187" rpy="0 0 0" />
-			<mass value="0.087" />
-			<inertia ixx="2.75087e-05" ixy="-3.35241e-07" ixz="-5.7352e-06" iyy="4.33657e-05"
-				iyz="-5.17847e-08" izz="3.45059e-05" />
+			<origin xyz="-0.0037735 -0.0295254 0.00594451" rpy="0 0 0" />
+			<mass value="0.087307" />
+			<inertia ixx="9.89785e-05" ixy="9.62938e-06" ixz="-1.42765e-05" iyy="7.30242e-05"
+				iyz="3.28486e-05" izz="6.1257e-05" />
 		</inertial>
 		<!-- Part sts3215_03a_v1_5 -->
 		<visual>
@@ -311,13 +327,14 @@
 				<mesh filename="package://lerobot_description/meshes/so101/sts3215_03a_v1.stl" />
 			</geometry>
 		</collision>
-		<!-- Part wrist_roll_follower_so101_v1 -->
+		<!-- Part Wrist_Roll_D405_Holder (replaces wrist_roll_follower_so101_v1; STL in mm → scale 1e-3). -->
 		<visual>
 			<origin xyz="5.55112e-17 -0.000218214 0.000949706"
 				rpy="-3.14159 -5.55112e-17 -9.17912e-24" />
 			<geometry>
 				<mesh
-					filename="package://lerobot_description/meshes/so101/wrist_roll_follower_so101_v1.stl" />
+					filename="package://lerobot_description/meshes/so101/Wrist_Roll_D405_Holder.stl"
+					scale="0.001 0.001 0.001" />
 			</geometry>
 			<material name="3d_printed" />
 		</visual>
@@ -326,7 +343,8 @@
 				rpy="-3.14159 -5.55112e-17 -9.17912e-24" />
 			<geometry>
 				<mesh
-					filename="package://lerobot_description/meshes/so101/wrist_roll_follower_so101_v1.stl" />
+					filename="package://lerobot_description/meshes/so101/Wrist_Roll_D405_Holder.stl"
+					scale="0.001 0.001 0.001" />
 			</geometry>
 		</collision>
 	</link>
@@ -354,6 +372,25 @@
 			</geometry>
 		</collision>
 	</link>
+
+	<!--
+	  D405 wrist camera, mounted on the Wrist_Roll_D405_Holder.
+	    parent=gripper          The fixed lower-jaw holder owns the camera.
+	    name=d405_wrist         Frames are d405_wrist_link, d405_wrist_depth_optical_frame, …
+	                            Match this with realsense2_camera's camera_name arg.
+	    use_nominal_extrinsics  Publish nominal datasheet optical extrinsics from the URDF.
+	                            With the live camera, launch realsense2_camera with
+	                            publish_tf:=false so its calibrated frames don't fight.
+	  TODO(d405-mount): replace xyz/rpy below with values measured on the printed
+	  holder. The origin defines gripper → d405_wrist_bottom_screw_frame, where
+	  bottom_screw_frame is the D405's tripod-mount point (bottom centerline of the
+	  camera body) and +X points out the lens. Verify in RViz by toggling the
+	  d405_wrist_link visual: it should sit on the holder's mount pad with the
+	  lens facing the workspace.
+	-->
+	<xacro:sensor_d405 parent="gripper" name="d405_wrist" use_nominal_extrinsics="true">
+		<origin xyz="0.000 -0.096 -0.020" rpy="0.0000 1.0472 1.5708" />
+	</xacro:sensor_d405>
 
 	<!-- Joint names align with Hugging Face LeRobot SO-101 (same as servo roles; gripper_joint avoids clashing with link 'gripper'). -->
 	<!-- Joint from gripper link to jaw -->

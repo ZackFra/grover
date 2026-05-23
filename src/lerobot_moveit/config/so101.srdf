@@ -70,4 +70,9 @@ are defined
     <disable_collisions link1="wrist" link2="jaw" reason="Never" />
     <!-- Adjacent pair disabled (common); gripper–jaw overlap is NOT checked by MoveIt ACM. -->
     <disable_collisions link1="gripper" link2="jaw" reason="Adjacent" />
+    <!-- D405 wrist camera body (only d405_wrist_link has collision geometry; other camera frames are TF-only). -->
+    <disable_collisions link1="gripper" link2="d405_wrist_link" reason="Adjacent" />
+    <disable_collisions link1="jaw" link2="d405_wrist_link" reason="Never" />
+    <disable_collisions link1="wrist" link2="d405_wrist_link" reason="Never" />
+    <disable_collisions link1="lower_arm" link2="d405_wrist_link" reason="Never" />
 </robot>
