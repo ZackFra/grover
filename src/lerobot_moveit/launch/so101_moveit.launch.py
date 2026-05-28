@@ -52,8 +52,20 @@ def generate_launch_description():
                 pipelines=["ompl"],
                 load_all=False,
             )
+            # 3D occupancy (octomap) from the D405 wrist camera point cloud.
+            .sensors_3d(file_path="config/sensors_3d.yaml")
             .to_moveit_configs()
         )
+
+        # Octomap volume parameters. These are NOT set by sensors_3d() automatically.
+        # `octomap_frame` is the static world frame the octomap accumulates in;
+        # `octomap_resolution` is the voxel edge length in meters (2.5 cm matches the
+        # smallest target objects we expect to grasp; smaller -> more compute).
+        octomap_params = {
+            "octomap_frame": "base",
+            "octomap_resolution": 0.025,
+            "max_range": 3.0,
+        }
 
         servo_yaml_name = "so101_servo_sim.yaml" if is_sim_mode else "so101_servo.yaml"
         with open(os.path.join(pkg_share, "config", servo_yaml_name)) as f:
@@ -71,6 +83,7 @@ def generate_launch_description():
             output="screen",
             parameters=[
                 moveit_config.to_dict(),
+                octomap_params,
                 {"use_sim_time": use_sim_time},
                 {"publish_robot_description_semantic": True},
             ],

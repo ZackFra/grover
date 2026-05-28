@@ -2,8 +2,9 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, RegisterEventHandler
-from launch.event_handlers import OnProcessStart
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction, RegisterEventHandler
+from launch.event_handlers import OnProcessExit, OnProcessStart
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
@@ -95,30 +96,66 @@ def generate_launch_description():
                 "--controller-manager",
                 "/controller_manager",
             ],
+            output="screen",
         )
         arm_controller_spawner = Node(
             package="controller_manager",
             executable="spawner",
             arguments=["arm_controller", "--controller-manager", "/controller_manager"],
+            output="screen",
         )
         gripper_controller_spawner = Node(
             package="controller_manager",
             executable="spawner",
             arguments=["gripper_controller", "--controller-manager", "/controller_manager"],
+            output="screen",
         )
 
-        on_start = [joint_state_broadcaster_spawner]
-        if start_tc:
-            on_start.extend([arm_controller_spawner, gripper_controller_spawner])
-
-        return [
+        # Spawn sequentially — parallel spawners race and try to re-configure
+        # controllers that are already active ("can not be configured from active").
+        actions = [
             RegisterEventHandler(
                 OnProcessStart(
                     target_action=controller_manager,
-                    on_start=on_start,
+                    on_start=[joint_state_broadcaster_spawner],
                 )
-            )
+            ),
         ]
+        if start_tc:
+            fcc_adapter = IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    os.path.join(
+                        get_package_share_directory("lerobot_controller"),
+                        "launch",
+                        "fcc_trajectory_adapter.launch.py",
+                    )
+                ),
+                launch_arguments={"update_rate_hz": "100.0"}.items(),
+            )
+            actions.extend(
+                [
+                    RegisterEventHandler(
+                        OnProcessExit(
+                            target_action=joint_state_broadcaster_spawner,
+                            on_exit=[arm_controller_spawner],
+                        )
+                    ),
+                    RegisterEventHandler(
+                        OnProcessExit(
+                            target_action=arm_controller_spawner,
+                            on_exit=[gripper_controller_spawner],
+                        )
+                    ),
+                    RegisterEventHandler(
+                        OnProcessExit(
+                            target_action=gripper_controller_spawner,
+                            on_exit=[fcc_adapter],
+                        )
+                    ),
+                ]
+            )
+
+        return actions
 
     return LaunchDescription(
         [

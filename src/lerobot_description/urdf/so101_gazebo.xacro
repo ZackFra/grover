@@ -8,4 +8,65 @@
         </plugin>
     </gazebo>
 
+    <!--
+      D405 wrist camera, sim-only sensor block.
+
+      One rgbd_camera sensor produces four gz topics rooted at /d405_wrist/rgbd:
+        /image           (color, gz.msgs.Image)
+        /depth_image     (float32 depth, gz.msgs.Image)
+        /points          (XYZRGB, gz.msgs.PointCloudPacked)
+        /camera_info     (gz.msgs.CameraInfo)
+      lerobot_description/config/d405_wrist_bridge.yaml remaps these to
+      realsense2_camera-compatible ROS topic names so segmentation / octomap
+      / RViz consumers don't care whether they're talking to sim or hardware.
+
+      Requires the Sensors system plugin to be loaded by the world SDF —
+      worlds/so101_empty.sdf does that; the stock gz-sim8 empty.sdf does not.
+
+      optical_frame_id: gz-sim applies the standard ROS optical-frame rotation
+      (image +Z forward, +X right, +Y down) when this is set, so image / depth
+      headers reference d405_wrist_color_optical_frame and downstream nodes
+      don't need an extra static transform.
+    -->
+    <gazebo reference="d405_wrist_link">
+        <sensor name="d405_wrist_rgbd" type="rgbd_camera">
+            <pose>0 0 0 0 0 0</pose>
+            <camera>
+                <!-- D405 datasheet: color ≈ 87° H, depth ≈ 87° H × 58° V; rgbd_camera uses one FOV. -->
+                <horizontal_fov>1.518</horizontal_fov>
+                <!--
+                  Sim resolution intentionally lower than the D405 driver's
+                  default 640x480:
+                    * 320x240 keeps the gz rendering pipeline real-time on the
+                      laptop GPU (640x480 was running ~7 Hz wall-clock).
+                    * Pointcloud becomes ~76k points (~1.2 MB) instead of ~307k
+                      (~5 MB) per frame, so the DDS bridge keeps up at 15 Hz
+                      without dropping packets.
+                  Perception (YOLO-Seg) and octomap care about FOV/intrinsics
+                  more than raw resolution at this stage; we can scale back up
+                  later if needed.
+                -->
+                <image>
+                    <width>320</width>
+                    <height>240</height>
+                </image>
+                <clip>
+                    <!-- D405 sees from ~7 cm; cap depth range at 3 m for sim throughput. -->
+                    <near>0.07</near>
+                    <far>3.0</far>
+                </clip>
+                <optical_frame_id>d405_wrist_color_optical_frame</optical_frame_id>
+            </camera>
+            <always_on>1</always_on>
+            <update_rate>15</update_rate>
+            <topic>d405_wrist/rgbd</topic>
+            <!--
+              Frame ID is set via <optical_frame_id> inside <camera> above.
+              The <gz_frame_id> tag is only valid inside <sensor> for
+              non-camera sensors (IMU, lidar, contact) — gz-sim warns if used
+              for cameras even though it tolerates it. So we omit it here.
+            -->
+        </sensor>
+    </gazebo>
+
 </robot>

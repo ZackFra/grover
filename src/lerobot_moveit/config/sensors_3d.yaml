@@ -1,0 +1,28 @@
+# MoveIt 3D occupancy (octomap) sensor source for the SO-101 wrist D405.
+#
+# Format matches moveit_setup_app_plugins template: `sensors` lists sensor
+# names; each name is a top-level block with updater params. Inline dicts in
+# `sensors:` crash MoveItConfigsBuilder.to_dict() on Jazzy.
+#
+# Topic names match sim (ros_gz_bridge) and HW (realsense2_camera).
+#
+# Octomap updater (PointCloudOctomapUpdater) uses tf2_ros::MessageFilter with a
+# hardcoded queue of 5. Each cloud waits for TF planning_frame <- optical_frame
+# at the cloud stamp. If joint_states/TF lag the camera, the queue fills and
+# move_group logs "discarding message because the queue is full" — those clouds
+# never reach the octomap. Mitigations: staggered MoveIt start (bringup), lower
+# point_subsample / max_update_rate here; D405 stays 424x240@15 (10 Hz not supported).
+
+sensors:
+  - d405_wrist_pointcloud
+
+d405_wrist_pointcloud:
+  sensor_plugin: occupancy_map_monitor/PointCloudOctomapUpdater
+  point_cloud_topic: /d405_wrist/depth/color/points
+  max_range: 3.0
+  point_subsample: 4
+  padding_offset: 0.01
+  padding_scale: 1.0
+  max_update_rate: 5.0
+  # OUTPUT only: move_group publishes points that passed the robot self-mask here.
+  filtered_cloud_topic: /d405_wrist/depth/color/points_filtered

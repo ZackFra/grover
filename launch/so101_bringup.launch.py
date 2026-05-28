@@ -13,6 +13,7 @@ from launch.actions import (
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
 
 _CONFIGURE_SCRIPT = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -20,7 +21,11 @@ _CONFIGURE_SCRIPT = os.path.join(
     "configure_so101_follower_bus.py",
 )
 
-_MOVEIT_DELAY_S = 3.0
+# Stagger HW bringup: Feetech + ros2_control first, then D405, then MoveIt.
+# MoveIt must start after joint_states + camera are up so the octomap MessageFilter
+# (queue=5) can resolve world <- d405_wrist_*_optical_frame at cloud stamps.
+_D405_DELAY_S = 2.0
+_MOVEIT_DELAY_S = 8.0
 
 
 def generate_launch_description():
@@ -115,13 +120,55 @@ def generate_launch_description():
                 "disable_servo_torque": disable_servo_torque,
             }.items(),
         )
+        # D405 wrist camera (HW only). Launch the node directly so parent
+        # bringup args (is_sim, follower_serial_port, …) are not forwarded
+        # into rs_launch.py and logged as unsupported-parameter warnings.
+        # D405 exposes RGB through depth_module, not rgb_camera — set both
+        # depth and color profiles there to keep USB bandwidth low on a shared hub.
+        # Disable IR1/IR2 ROS streams (default opens 848x480@30 each) or USB drops
+        # frames ("Incomplete video frame", ~24% of expected bytes). Depth still works.
+        d405_camera = Node(
+            package="realsense2_camera",
+            executable="realsense2_camera_node",
+            name="d405_wrist",
+            namespace="",
+            output="screen",
+            respawn=True,
+            respawn_delay=3.0,
+            parameters=[
+                {
+                    "camera_name": "d405_wrist",
+                    "device_type": "D405",
+                    "publish_tf": False,
+                    "enable_infra": False,
+                    "enable_infra1": False,
+                    "enable_infra2": False,
+                    # Sync depth+color in one frameset (needed for textured pointcloud).
+                    "enable_sync": True,
+                    "pointcloud.enable": True,
+                    # LibRealSense RS2_OPTION_STREAM_FILTER: 2 = color (RGB texture).
+                    "pointcloud.stream_filter": 2,
+                    # Match MoveIt PointCloudOctomapUpdater (SensorDataQoS / BEST_EFFORT).
+                    "pointcloud.pointcloud_qos": "SENSOR_DATA",
+                    # Still publish XYZ if texture pairing fails (octomap only needs xyz).
+                    "pointcloud.allow_no_texture_points": True,
+                    "align_depth.enable": True,
+                    "enable_color": True,
+                    "enable_depth": True,
+                    # 424x240@15 is supported on D405; @10 is not (driver falls back to 848x480@30).
+                    "depth_module.depth_profile": "424,240,15",
+                    "depth_module.color_profile": "424,240,15",
+                }
+            ],
+        )
+        d405_delayed = TimerAction(period=_D405_DELAY_S, actions=[d405_camera])
         moveit_delayed = TimerAction(period=_MOVEIT_DELAY_S, actions=[moveit_launch])
         return [
             configure_feetech,
             RegisterEventHandler(
                 OnProcessExit(
                     target_action=configure_feetech,
-                    on_exit=[hw_launch, moveit_delayed],
+                    on_exit=[hw_launch, d405_delayed, moveit_delayed],
                 )
             ),
         ]

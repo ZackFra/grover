@@ -1,0 +1,38 @@
+# ros_gz_bridge mapping for the simulated D405 wrist camera.
+#
+# Gazebo publishes one rgbd_camera sensor (declared in so101_base.xacro) on
+# topics rooted at /d405_wrist/rgbd. This file remaps those onto the same
+# topic names realsense2_camera publishes on hardware, so downstream nodes
+# (segmentation, octomap, viz) need zero changes between sim and HW.
+#
+# Used by lerobot_description/launch/so101_gazebo.launch.py via ros_gz_bridge.
+#
+# Sim topic                                  HW (realsense2_camera) equivalent
+# /d405_wrist/rgbd/image                  -> /d405_wrist/color/image_raw
+# /d405_wrist/rgbd/depth_image            -> /d405_wrist/aligned_depth_to_color/image_raw
+# /d405_wrist/rgbd/points                 -> /d405_wrist/depth/color/points
+# /d405_wrist/rgbd/camera_info            -> /d405_wrist/color/camera_info
+
+- ros_topic_name: "/d405_wrist/color/image_raw"
+  gz_topic_name: "/d405_wrist/rgbd/image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/d405_wrist/aligned_depth_to_color/image_raw"
+  gz_topic_name: "/d405_wrist/rgbd/depth_image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/d405_wrist/depth/color/points"
+  gz_topic_name: "/d405_wrist/rgbd/points"
+  ros_type_name: "sensor_msgs/msg/PointCloud2"
+  gz_type_name: "gz.msgs.PointCloudPacked"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/d405_wrist/color/camera_info"
+  gz_topic_name: "/d405_wrist/rgbd/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
