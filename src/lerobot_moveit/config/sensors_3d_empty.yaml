@@ -1,0 +1,4 @@
+# Unused at runtime — kept as documentation only.
+# enable_octomap:=false omits 3D sensor params in so101_moveit.launch.py because
+# MoveItConfigsBuilder skips sensors: [] and launch_ros rejects an empty list ([] -> ()).
+sensors: []

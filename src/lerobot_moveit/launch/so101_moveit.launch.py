@@ -23,19 +23,36 @@ def generate_launch_description():
         default_value="false",
         description="Must match hardware launch: passive ros2_control joints / torque off.",
     )
+    enable_octomap_arg = DeclareLaunchArgument(
+        name="enable_octomap",
+        default_value="true",
+        description=(
+            "When true, move_group loads PointCloudOctomapUpdater from sensors_3d.yaml "
+            "and publishes the occupancy map on the monitored planning scene."
+        ),
+    )
 
     def launch_moveit_rviz_servo(context):
         """move_group + RViz + servo_node (joint jog teleop via lerobot_ros action_type=joint_jog)."""
-        is_sim_str = LaunchConfiguration("is_sim").perform(context).strip().lower()
-        use_sim_time = is_sim_str in ("true", "1", "yes", "on")
-        is_sim_mode = use_sim_time  # Gazebo bringup sets is_sim true
+        use_sim_time = (
+            LaunchConfiguration("is_sim").perform(context).strip().lower() == "true"
+        )
+        is_sim_mode = use_sim_time
 
         follower_serial_port = LaunchConfiguration("follower_serial_port")
+        use_octomap = (
+            LaunchConfiguration("enable_octomap").perform(context).strip().lower()
+            == "true"
+        )
+
         pkg_share = get_package_share_directory("lerobot_moveit")
         lerobot_description_dir = get_package_share_directory("lerobot_description")
         so101_urdf_path = os.path.join(lerobot_description_dir, "urdf", "so101.urdf.xacro")
 
-        moveit_config = (
+        # MoveItConfigsBuilder ignores sensors: [] and to_moveit_configs() auto-loads
+        # sensors_3d.yaml. An empty sensors list also breaks launch_ros ([] -> ()).
+        # When octomap is off: block auto-load, then omit sensor keys from node params.
+        builder = (
             MoveItConfigsBuilder("so101", package_name="lerobot_moveit")
             .robot_description(
                 file_path=so101_urdf_path,
@@ -52,20 +69,19 @@ def generate_launch_description():
                 pipelines=["ompl"],
                 load_all=False,
             )
-            # 3D occupancy (octomap) from the D405 wrist camera point cloud.
-            .sensors_3d(file_path="config/sensors_3d.yaml")
-            .to_moveit_configs()
         )
-
-        # Octomap volume parameters. These are NOT set by sensors_3d() automatically.
-        # `octomap_frame` is the static world frame the octomap accumulates in;
-        # `octomap_resolution` is the voxel edge length in meters (2.5 cm matches the
-        # smallest target objects we expect to grasp; smaller -> more compute).
-        octomap_params = {
-            "octomap_frame": "base",
-            "octomap_resolution": 0.025,
-            "max_range": 3.0,
-        }
+        if use_octomap:
+            builder = builder.sensors_3d(file_path="config/sensors_3d.yaml")
+        else:
+            builder._MoveItConfigsBuilder__moveit_configs.sensors_3d = {
+                "_octomap_disabled": True
+            }
+        moveit_config = builder.to_moveit_configs()
+        move_group_params = moveit_config.to_dict()
+        if not use_octomap:
+            move_group_params.pop("sensors", None)
+            move_group_params.pop("d405_wrist_pointcloud", None)
+            move_group_params.pop("_octomap_disabled", None)
 
         servo_yaml_name = "so101_servo_sim.yaml" if is_sim_mode else "so101_servo.yaml"
         with open(os.path.join(pkg_share, "config", servo_yaml_name)) as f:
@@ -77,16 +93,25 @@ def generate_launch_description():
         }
         planning_group_name = {"planning_group_name": servo_yaml["move_group_name"]}
 
+        move_group_node_params = [
+            move_group_params,
+            {"use_sim_time": use_sim_time},
+            {"publish_robot_description_semantic": True},
+        ]
+        if use_octomap:
+            move_group_node_params.insert(
+                1,
+                {
+                    "octomap_frame": "base",
+                    "octomap_resolution": 0.025,
+                    "max_range": 3.0,
+                },
+            )
         move_group_node = Node(
             package="moveit_ros_move_group",
             executable="move_group",
             output="screen",
-            parameters=[
-                moveit_config.to_dict(),
-                octomap_params,
-                {"use_sim_time": use_sim_time},
-                {"publish_robot_description_semantic": True},
-            ],
+            parameters=move_group_node_params,
             arguments=["--ros-args", "--log-level", "info"],
         )
 
@@ -129,6 +154,7 @@ def generate_launch_description():
             is_sim_arg,
             follower_serial_port_arg,
             disable_servo_torque_arg,
+            enable_octomap_arg,
             OpaqueFunction(function=launch_moveit_rviz_servo),
         ]
     )

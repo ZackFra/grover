@@ -29,7 +29,7 @@ smoothing_filter_plugin_name: "online_signal_smoothing::AccelerationLimitedPlugi
 
 ## Planning scene / frames (SO-101 base link is "base" in URDF)
 is_primary_planning_scene_monitor: false
-check_octomap_collisions: true
+check_octomap_collisions: false
 move_group_name: arm
 
 ## Singularity handling (MoveIt defaults; wide thresholds for small 5-DOF arm)

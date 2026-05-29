@@ -10,6 +10,7 @@ from launch.actions import (
     RegisterEventHandler,
     TimerAction,
 )
+from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
@@ -54,11 +55,26 @@ def generate_launch_description():
             "Hardware only: true = Feetech torque off (passive joints), for posing/calibration by hand."
         ),
     )
+    enable_octomap_arg = DeclareLaunchArgument(
+        "enable_octomap",
+        default_value="true",
+        description=(
+            "When true, move_group loads PointCloudOctomapUpdater (occupancy on "
+            "/monitored_planning_scene). The D405 wrist camera always starts on HW."
+        ),
+    )
+    enable_d405_arg = DeclareLaunchArgument(
+        "enable_d405",
+        default_value="true",
+        description="Hardware only: start the RealSense D405 wrist camera node.",
+    )
 
     is_sim = LaunchConfiguration("is_sim")
     follower_serial_port = LaunchConfiguration("follower_serial_port")
     start_trajectory_controllers = LaunchConfiguration("start_trajectory_controllers")
     disable_servo_torque = LaunchConfiguration("disable_servo_torque")
+    enable_octomap = LaunchConfiguration("enable_octomap")
+    enable_d405 = LaunchConfiguration("enable_d405")
 
     moveit_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -72,12 +88,12 @@ def generate_launch_description():
             "is_sim": is_sim,
             "follower_serial_port": follower_serial_port,
             "disable_servo_torque": disable_servo_torque,
+            "enable_octomap": enable_octomap,
         }.items(),
     )
 
     def _select_controller_launch(context):
-        sim_value = str(is_sim.perform(context)).strip().lower()
-        is_sim_mode = sim_value in ("1", "true", "yes", "on")
+        is_sim_mode = is_sim.perform(context).strip().lower() == "true"
         if is_sim_mode:
             return [
                 IncludeLaunchDescription(
@@ -161,14 +177,20 @@ def generate_launch_description():
                 }
             ],
         )
-        d405_delayed = TimerAction(period=_D405_DELAY_S, actions=[d405_camera])
-        moveit_delayed = TimerAction(period=_MOVEIT_DELAY_S, actions=[moveit_launch])
         return [
             configure_feetech,
             RegisterEventHandler(
                 OnProcessExit(
                     target_action=configure_feetech,
-                    on_exit=[hw_launch, d405_delayed, moveit_delayed],
+                    on_exit=[
+                        hw_launch,
+                        TimerAction(
+                            period=_D405_DELAY_S,
+                            actions=[d405_camera],
+                            condition=IfCondition(enable_d405),
+                        ),
+                        TimerAction(period=_MOVEIT_DELAY_S, actions=[moveit_launch]),
+                    ],
                 )
             ),
         ]
@@ -179,6 +201,8 @@ def generate_launch_description():
             follower_serial_port_arg,
             start_trajectory_controllers_arg,
             disable_servo_torque_arg,
+            enable_octomap_arg,
+            enable_d405_arg,
             OpaqueFunction(function=_select_controller_launch),
         ]
     )
