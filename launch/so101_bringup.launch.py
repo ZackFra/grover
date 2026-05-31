@@ -171,9 +171,13 @@ def generate_launch_description():
                     "align_depth.enable": True,
                     "enable_color": True,
                     "enable_depth": True,
-                    # 424x240@15 is supported on D405; @10 is not (driver falls back to 848x480@30).
-                    "depth_module.depth_profile": "424,240,15",
-                    "depth_module.color_profile": "424,240,15",
+                    # 640x480@30 gives finer ChArUco corner localization for hand-eye / target
+                    # tracking than the previous 424x240@15 (~1.5x angular precision per pixel)
+                    # and doubles the frame rate for tighter octomap MessageFilter alignment,
+                    # while still under the driver's 848x480@30 fallback bandwidth. @10 is
+                    # not supported on D405 (falls back to 848x480@30).
+                    "depth_module.depth_profile": "640,480,30",
+                    "depth_module.color_profile": "640,480,30",
                 }
             ],
         )

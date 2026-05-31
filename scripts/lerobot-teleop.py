@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 """Python equivalent of scripts/lerobot-teleop.sh.
 
-HW teleop: joint_jog -> MoveIt Servo (collision checking) -> /arm_controller/commands.
+HW teleop: leader joint goals -> SO101ROSConfig (lerobot_robot_ros) in
+JOINT_POSITION mode. Publishes `std_msgs/Float64MultiArray` directly on
+`/arm_controller/commands` (`ros_interface.ROS2Interface.connect`,
+ActionType.JOINT_POSITION branch) -- ForwardCommandController consumes
+them natively, no MoveIt Servo and no `fcc_trajectory_adapter` round-trip.
+Run with `so101_bringup.launch.py is_sim:=False` already holding the
+Feetech bus.
 
-Same defaults as the bash script. Use this when you want to edit `SO101ROSConfig`
-in place, attach a debugger, or extend the teleop loop. For the bash-only path,
-see scripts/lerobot-teleop.sh.
+Use this when you want to edit `SO101ROSConfig` in place, attach a debugger,
+or extend the teleop loop. For the bash-only path, see
+scripts/lerobot-teleop.sh.
 
 Usage:
     ./scripts/lerobot-teleop.py
@@ -47,7 +53,7 @@ def main() -> None:
     cfg = TeleoperateConfig(
         robot=SO101ROSConfig(
             id=ROBOT_ID,
-            action_type=ActionType.JOINT_JOG,
+            action_type=ActionType.JOINT_POSITION,
             convert_so101_leader_units=True,
         ),
         teleop=SO101LeaderConfig(id=LEADER_ID, port=LEADER_PORT),

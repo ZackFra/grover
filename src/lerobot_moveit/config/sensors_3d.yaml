@@ -11,7 +11,8 @@
 # at the cloud stamp. If joint_states/TF lag the camera, the queue fills and
 # move_group logs "discarding message because the queue is full" — those clouds
 # never reach the octomap. Mitigations: staggered MoveIt start (bringup), lower
-# point_subsample / max_update_rate here; D405 stays 424x240@15 (10 Hz not supported).
+# point_subsample / max_update_rate here; D405 streams 640x480@30 in bringup
+# (10 Hz not supported on D405 — driver falls back to 848x480@30).
 
 sensors:
   - d405_wrist_pointcloud
@@ -21,7 +22,7 @@ d405_wrist_pointcloud:
   point_cloud_topic: /d405_wrist/depth/color/points
   max_range: 3.0
   point_subsample: 4
-  padding_offset: 0.01
+  padding_offset: 0.04
   padding_scale: 1.0
   max_update_rate: 5.0
   # OUTPUT only: move_group publishes points that passed the robot self-mask here.
