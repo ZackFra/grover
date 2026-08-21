@@ -32,6 +32,14 @@ def generate_launch_description():
             "feetech_ros2_driver disables servo torque on init. Arm/gripper controllers are not started."
         ),
     )
+    d405_use_nominal_extrinsics_arg = DeclareLaunchArgument(
+        "d405_use_nominal_extrinsics",
+        default_value="true",
+        description=(
+            "If false, omit D405 optical frames from the URDF so a hand-eye "
+            "static TF (camera_pose.launch.py) can own gripper → color_optical_frame."
+        ),
+    )
     follower_serial_port = LaunchConfiguration("follower_serial_port")
 
     urdf_xacro = os.path.join(
@@ -48,6 +56,8 @@ def generate_launch_description():
                 follower_serial_port,
                 " hardware_passive:=",
                 LaunchConfiguration("disable_servo_torque"),
+                " d405_use_nominal_extrinsics:=",
+                LaunchConfiguration("d405_use_nominal_extrinsics"),
             ]
         ),
         value_type=str,
@@ -162,6 +172,7 @@ def generate_launch_description():
             follower_serial_port_arg,
             start_trajectory_controllers_arg,
             disable_servo_torque_arg,
+            d405_use_nominal_extrinsics_arg,
             robot_state_publisher_node,
             controller_manager,
             OpaqueFunction(function=register_conditional_spawners),

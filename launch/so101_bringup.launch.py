@@ -16,10 +16,10 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
-_CONFIGURE_SCRIPT = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "scripts",
-    "configure_so101_follower_bus.py",
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_CONFIGURE_SCRIPT = os.path.join(_REPO_ROOT, "scripts", "configure_so101_follower_bus.py")
+_CAMERA_POSE_LAUNCH = os.path.join(
+    _REPO_ROOT, "config", "realsense-d405", "camera_pose.launch.py"
 )
 
 # Stagger HW bringup: Feetech + ros2_control first, then D405, then MoveIt.
@@ -134,7 +134,13 @@ def generate_launch_description():
                 "follower_serial_port": follower_serial_port,
                 "start_trajectory_controllers": start_trajectory_controllers,
                 "disable_servo_torque": disable_servo_torque,
+                # Hand-eye overlay owns optical TF; omit URDF optical frames.
+                "d405_use_nominal_extrinsics": "false",
             }.items(),
+        )
+        camera_pose = IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(_CAMERA_POSE_LAUNCH),
+            condition=IfCondition(enable_d405),
         )
         # D405 wrist camera (HW only). Launch the node directly so parent
         # bringup args (is_sim, follower_serial_port, …) are not forwarded
@@ -188,6 +194,7 @@ def generate_launch_description():
                     target_action=configure_feetech,
                     on_exit=[
                         hw_launch,
+                        camera_pose,
                         TimerAction(
                             period=_D405_DELAY_S,
                             actions=[d405_camera],
