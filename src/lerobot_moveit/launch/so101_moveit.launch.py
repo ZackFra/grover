@@ -60,6 +60,8 @@ def generate_launch_description():
                     "use_sim": LaunchConfiguration("is_sim"),
                     "usb_port": follower_serial_port,
                     "hardware_passive": LaunchConfiguration("disable_servo_torque"),
+                    # HW: optical frames come from camera_pose.launch.py, not the URDF.
+                    "d405_use_nominal_extrinsics": "true" if is_sim_mode else "false",
                 },
             )
             .robot_description_semantic(file_path="config/so101.srdf")

@@ -5,6 +5,8 @@
     <xacro:arg name="usb_port" default="/dev/so101_follower"/>
     <!-- Hardware: state-only ros2_control joints → Feetech driver disables torque (see feetech_ros2_driver on_init). -->
     <xacro:arg name="hardware_passive" default="false"/>
+    <!-- Sim: true (Gazebo needs URDF optical frames). HW + camera_pose.launch.py: false. -->
+    <xacro:arg name="d405_use_nominal_extrinsics" default="true"/>
 
     <xacro:include filename="$(find lerobot_description)/urdf/so101_base.xacro"/>
 

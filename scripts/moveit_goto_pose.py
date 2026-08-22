@@ -16,6 +16,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import math
 import sys
 import time
 from typing import Sequence
@@ -26,6 +27,7 @@ from moveit_msgs.action import MoveGroup
 from moveit_msgs.msg import (
     BoundingVolume,
     Constraints,
+    JointConstraint,
     MotionPlanRequest,
     MoveItErrorCodes,
     OrientationConstraint,
@@ -132,17 +134,23 @@ def build_pose_constraints(
     position.weight = 1.0
     constraints.position_constraints.append(position)
 
-    orientation = OrientationConstraint()
-    orientation.header = pose.header
-    orientation.link_name = link_name
-    orientation.orientation = pose.pose.orientation
-    orientation.absolute_x_axis_tolerance = float(orient_tol)
-    orientation.absolute_y_axis_tolerance = float(orient_tol)
-    orientation.absolute_z_axis_tolerance = float(orient_tol)
-    if hasattr(OrientationConstraint, "XYZ_EULER_ANGLES"):
-        orientation.parameterization = OrientationConstraint.XYZ_EULER_ANGLES
-    orientation.weight = 1.0
-    constraints.orientation_constraints.append(orientation)
+    # 5-DOF: skip orientation unless the caller asked for a finite tolerance.
+    # KDL still won't match a 6-DOF quat; a tight OrientationConstraint rejects
+    # every position-only IK sample.
+    if float(orient_tol) > 0.0:
+        orientation = OrientationConstraint()
+        orientation.header = pose.header
+        orientation.link_name = link_name
+        orientation.orientation = pose.pose.orientation
+        # Keep the gripper pointing the same way (down from top_view). Yaw about
+        # world Z is free — the arm is 5-DOF and cannot hit a full 6-DOF quat.
+        orientation.absolute_x_axis_tolerance = float(orient_tol)
+        orientation.absolute_y_axis_tolerance = float(orient_tol)
+        orientation.absolute_z_axis_tolerance = math.pi
+        if hasattr(OrientationConstraint, "XYZ_EULER_ANGLES"):
+            orientation.parameterization = OrientationConstraint.XYZ_EULER_ANGLES
+        orientation.weight = 1.0
+        constraints.orientation_constraints.append(orientation)
     return constraints
 
 
@@ -167,6 +175,7 @@ class MoveGroupPoseGoaler(Node):
         orient_tol: float,
         planning_time_s: float,
         attempts: int,
+        extra_joint_constraints: list[JointConstraint] | None = None,
         server_wait_s: float = 10.0,
     ) -> MoveGroup.Result | None:
         request = MotionPlanRequest()
@@ -176,14 +185,24 @@ class MoveGroupPoseGoaler(Node):
         request.max_velocity_scaling_factor = vel_scale
         request.max_acceleration_scaling_factor = accel_scale
         request.start_state.is_diff = True
-        request.goal_constraints.append(
-            build_pose_constraints(
-                pose,
-                link_name=link_name,
-                position_radius=position_radius,
-                orient_tol=orient_tol,
-            )
+        goal_constraints = build_pose_constraints(
+            pose,
+            link_name=link_name,
+            position_radius=position_radius,
+            orient_tol=orient_tol,
         )
+        if extra_joint_constraints:
+            for jc in extra_joint_constraints:
+                goal_constraints.joint_constraints.append(jc)
+                path_jc = JointConstraint()
+                path_jc.joint_name = jc.joint_name
+                path_jc.position = jc.position
+                path_jc.tolerance_above = jc.tolerance_above
+                path_jc.tolerance_below = jc.tolerance_below
+                path_jc.weight = jc.weight
+                request.path_constraints.joint_constraints.append(path_jc)
+            request.path_constraints.name = "hold_wrist"
+        request.goal_constraints.append(goal_constraints)
 
         options = PlanningOptions()
         options.plan_only = plan_only
@@ -207,6 +226,7 @@ class MoveGroupPoseGoaler(Node):
             f"xyz=({p.x:+.4f}, {p.y:+.4f}, {p.z:+.4f}) "
             f"quat=({q.x:+.3f}, {q.y:+.3f}, {q.z:+.3f}, {q.w:+.3f}); "
             f"pos_r={position_radius:.3f} m, orient_tol={orient_tol:.2f} rad, "
+            f"wrist_holds={len(extra_joint_constraints or [])}, "
             f"plan_only={plan_only}"
         )
 
@@ -232,10 +252,11 @@ def send_pose(
     plan_only: bool = False,
     vel_scale: float = 0.3,
     accel_scale: float = 0.3,
-    position_radius: float = 0.015,
-    orient_tol: float = 0.5,
+    position_radius: float = 0.03,
+    orient_tol: float = 0.0,
     planning_time_s: float = 5.0,
     attempts: int = 10,
+    extra_joint_constraints: list[JointConstraint] | None = None,
 ) -> MoveGroup.Result | None:
     """Create a goaler node, send `pose`, destroy the node. Caller owns rclpy.init."""
     node = MoveGroupPoseGoaler(group_name=group)
@@ -250,6 +271,7 @@ def send_pose(
             orient_tol=orient_tol,
             planning_time_s=planning_time_s,
             attempts=attempts,
+            extra_joint_constraints=extra_joint_constraints,
         )
     finally:
         node.destroy_node()
@@ -292,14 +314,14 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--position-radius",
         type=float,
-        default=0.015,
-        help="PositionConstraint sphere radius in meters (default 0.015).",
+        default=0.03,
+        help="PositionConstraint sphere radius in meters (default 0.03).",
     )
     parser.add_argument(
         "--orient-tol",
         type=float,
-        default=0.5,
-        help="Loose per-axis orientation tolerance in radians (default 0.5).",
+        default=0.0,
+        help="Per-axis orientation tolerance in radians; 0 skips the constraint (default, required for 5-DOF IK).",
     )
     parser.add_argument("--planning-time", type=float, default=5.0)
     parser.add_argument("--attempts", type=int, default=10)

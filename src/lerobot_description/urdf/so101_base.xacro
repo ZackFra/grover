@@ -379,16 +379,14 @@
 	    name=d405_wrist         Frames are d405_wrist_link, d405_wrist_depth_optical_frame, …
 	                            Match this with realsense2_camera's camera_name arg.
 	    use_nominal_extrinsics  Publish nominal datasheet optical extrinsics from the URDF.
-	                            With the live camera, launch realsense2_camera with
-	                            publish_tf:=false so its calibrated frames don't fight.
-	  TODO(d405-mount): replace xyz/rpy below with values measured on the printed
-	  holder. The origin defines gripper → d405_wrist_bottom_screw_frame, where
-	  bottom_screw_frame is the D405's tripod-mount point (bottom centerline of the
-	  camera body) and +X points out the lens. Verify in RViz by toggling the
-	  d405_wrist_link visual: it should sit on the holder's mount pad with the
-	  lens facing the workspace.
+	                            Sim keeps this true. Hardware bringup sets it false and
+	                            launches camera_pose.launch.py so the MoveIt hand-eye TF
+	                            (gripper → d405_wrist_color_optical_frame) does not fight
+	                            robot_state_publisher. realsense2_camera uses publish_tf:=false.
+	  The origin defines gripper → d405_wrist_bottom_screw_frame (CAD mesh / holder).
+	  Optical pose on hardware comes from config/realsense-d405/camera_pose.launch.py.
 	-->
-	<xacro:sensor_d405 parent="gripper" name="d405_wrist" use_nominal_extrinsics="true">
+	<xacro:sensor_d405 parent="gripper" name="d405_wrist" use_nominal_extrinsics="$(arg d405_use_nominal_extrinsics)">
 		<origin xyz="0.000 -0.096 -0.020" rpy="0.0000 1.02 1.5708" />
 	</xacro:sensor_d405>
 	<!-- Gazebo rgbd_camera sensor block lives in so101_gazebo.xacro (sim-only file). -->
