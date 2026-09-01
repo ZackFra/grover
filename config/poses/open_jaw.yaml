@@ -1,0 +1,12 @@
+joints:
+  elbow_flex: 1.5585244804918115
+  gripper_joint: 1.6827769243105484
+  shoulder_lift: -1.8085633489171709
+  shoulder_pan: 0.09817477042468103
+  wrist_flex: 1.3130875544301088
+  wrist_roll: 1.6336895390982078
+stamp:
+  sec: 1788219983
+  nanosec: 409045208
+frame_id: base_link
+source_topic: /joint_states

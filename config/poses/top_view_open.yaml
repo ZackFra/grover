@@ -1,6 +1,6 @@
 joints:
   elbow_flex: -0.5537670644267164
-  gripper_joint: -0.17947575218262002
+  gripper_joint: 1.6827769243105484
   shoulder_lift: -0.3911651009108385
   shoulder_pan: -0.08436894333371027
   wrist_flex: 1.6858448858863198

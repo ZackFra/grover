@@ -5,13 +5,16 @@ Sends a MoveGroup action goal on /move_action with joint_constraints built
 from a pose YAML written by scripts/snapshot_joints.py (or any YAML with a
 top-level `joints:` mapping of joint_name -> radians).
 
-The gripper joint is excluded by default because it's not in the `arm`
-planning group -- MoveIt would reject the goal otherwise. Use a separate
-publisher to /gripper_controller/commands for the gripper.
+The gripper is not in the ``arm`` planning group, so MoveIt never sees it.
+If the YAML has ``gripper_joint``, this script also publishes that angle on
+``/gripper_controller/commands`` (ForwardCommandController) after the arm
+move. ``top_view`` is closed (~-0.18 rad); ``top_view_open`` is open (~1.68).
 
 Usage:
     # With so101_bringup running:
     python3 scripts/moveit_goto_joints.py home
+    python3 scripts/moveit_goto_joints.py top_view          # arm + close gripper
+    python3 scripts/moveit_goto_joints.py top_view_open     # arm + open gripper
     python3 scripts/moveit_goto_joints.py home --plan-only   # preview, no execute
     python3 scripts/moveit_goto_joints.py home --vel 0.5 --accel 0.5
     python3 scripts/moveit_goto_joints.py path/to/custom.yaml
@@ -21,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from pathlib import Path
 from typing import Iterable
 
@@ -36,6 +40,7 @@ from moveit_msgs.msg import (
 )
 from rclpy.action import ActionClient
 from rclpy.node import Node
+from std_msgs.msg import Float64MultiArray
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_POSES_DIR = REPO_ROOT / "config" / "poses"
@@ -47,6 +52,8 @@ ARM_GROUP_JOINTS: tuple[str, ...] = (
     "wrist_flex",
     "wrist_roll",
 )
+GRIPPER_JOINT = "gripper_joint"
+GRIPPER_COMMAND_TOPIC = "/gripper_controller/commands"
 
 # Reverse-map MoveItErrorCodes constants (val -> name) for human-readable errors.
 _MOVEIT_ERROR_NAMES: dict[int, str] = {
@@ -161,6 +168,112 @@ class MoveGroupGoaler(Node):
         wrapper = result_future.result()
         return wrapper.result if wrapper is not None else None
 
+    def send_gripper(self, position: float, *, settle_s: float = 0.4) -> None:
+        """Command the FCC gripper (not in the MoveIt arm group)."""
+        pub = self.create_publisher(Float64MultiArray, GRIPPER_COMMAND_TOPIC, 10)
+        msg = Float64MultiArray()
+        msg.data = [float(position)]
+        deadline = time.monotonic() + 1.0
+        while time.monotonic() < deadline and pub.get_subscription_count() == 0:
+            rclpy.spin_once(self, timeout_sec=0.05)
+        if pub.get_subscription_count() == 0:
+            self.get_logger().warn(
+                f"No subscriber on {GRIPPER_COMMAND_TOPIC}; gripper command may be dropped."
+            )
+        for _ in range(8):
+            pub.publish(msg)
+            rclpy.spin_once(self, timeout_sec=0.02)
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < settle_s:
+            rclpy.spin_once(self, timeout_sec=0.05)
+        self.get_logger().info(
+            f"Gripper {GRIPPER_JOINT}={position:+.4f} rad -> {GRIPPER_COMMAND_TOPIC}"
+        )
+
+
+def execute_named_pose(
+    pose: str,
+    *,
+    group: str = "arm",
+    vel: float = 0.3,
+    accel: float = 0.3,
+    tolerance: float = 0.01,
+    planning_time: float = 5.0,
+    attempts: int = 10,
+    plan_only: bool = False,
+    joints: Iterable[str] | None = None,
+    move_gripper: bool = True,
+) -> int:
+    """Plan/execute a named pose. Inits rclpy only if this process has not already."""
+    try:
+        all_joints, path = load_pose(pose)
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
+    allow = tuple(joints) if joints else ARM_GROUP_JOINTS
+    arm_positions, skipped = filter_joints(all_joints, allow)
+    gripper_pos = all_joints.get(GRIPPER_JOINT) if move_gripper else None
+    skipped = [n for n in skipped if not (n == GRIPPER_JOINT and gripper_pos is not None)]
+    if not arm_positions:
+        print(
+            f"ERROR: no joints in {path} match the allowed set {sorted(allow)}. "
+            f"YAML has: {sorted(all_joints)}",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(f"Loaded pose: {path.relative_to(REPO_ROOT) if path.is_absolute() else path}")
+    print(f"  group: {group}")
+    print(f"  constraining {len(arm_positions)} joint(s):")
+    for name in sorted(arm_positions):
+        print(f"    {name:14s} {arm_positions[name]:+.6f}")
+    if gripper_pos is not None:
+        print(
+            f"  gripper {GRIPPER_JOINT}={gripper_pos:+.6f} "
+            f"via {GRIPPER_COMMAND_TOPIC}"
+            + (" (skipped, --plan-only)" if plan_only else "")
+        )
+    if skipped:
+        print(f"  skipping {len(skipped)} joint(s) not in group: {sorted(skipped)}")
+    print()
+
+    own_ctx = not rclpy.ok()
+    if own_ctx:
+        rclpy.init()
+    try:
+        node = MoveGroupGoaler(group_name=group)
+        result = node.send(
+            arm_positions,
+            plan_only=plan_only,
+            vel_scale=vel,
+            accel_scale=accel,
+            tolerance_rad=tolerance,
+            planning_time_s=planning_time,
+            attempts=attempts,
+        )
+        arm_ok = (
+            result is not None
+            and int(result.error_code.val) == int(MoveItErrorCodes.SUCCESS)
+        )
+        if arm_ok and gripper_pos is not None and not plan_only:
+            node.send_gripper(gripper_pos)
+        node.destroy_node()
+    finally:
+        if own_ctx:
+            rclpy.shutdown()
+
+    if result is None:
+        return 2
+
+    code = int(result.error_code.val)
+    name = _MOVEIT_ERROR_NAMES.get(code, f"UNKNOWN({code})")
+    if code == int(MoveItErrorCodes.SUCCESS):
+        print(f"\nMoveIt result: SUCCESS ({code})")
+        return 0
+    print(f"\nMoveIt result: {name} ({code})  -- see moveit_msgs/MoveItErrorCodes")
+    return 3
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -214,62 +327,28 @@ def main() -> int:
         default=None,
         help=(
             "Override the joints constrained from the YAML (default: the 5 "
-            "joints of the 'arm' planning group; gripper_joint is excluded "
-            "because it's a separate controller)."
+            "joints of the 'arm' planning group). gripper_joint is sent on "
+            "/gripper_controller/commands unless --no-gripper."
         ),
     )
+    parser.add_argument(
+        "--no-gripper",
+        action="store_true",
+        help="Do not command gripper_joint even if it is in the YAML.",
+    )
     args = parser.parse_args()
-
-    try:
-        all_joints, path = load_pose(args.pose)
-    except (FileNotFoundError, ValueError) as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
-
-    allow = args.joints if args.joints else ARM_GROUP_JOINTS
-    arm_positions, skipped = filter_joints(all_joints, allow)
-    if not arm_positions:
-        print(
-            f"ERROR: no joints in {path} match the allowed set {sorted(allow)}. "
-            f"YAML has: {sorted(all_joints)}",
-            file=sys.stderr,
-        )
-        return 1
-
-    print(f"Loaded pose: {path.relative_to(REPO_ROOT) if path.is_absolute() else path}")
-    print(f"  group: {args.group}")
-    print(f"  constraining {len(arm_positions)} joint(s):")
-    for name in sorted(arm_positions):
-        print(f"    {name:14s} {arm_positions[name]:+.6f}")
-    if skipped:
-        print(f"  skipping {len(skipped)} joint(s) not in group: {sorted(skipped)}")
-    print()
-
-    rclpy.init()
-    try:
-        node = MoveGroupGoaler(group_name=args.group)
-        result = node.send(
-            arm_positions,
-            plan_only=args.plan_only,
-            vel_scale=args.vel,
-            accel_scale=args.accel,
-            tolerance_rad=args.tolerance,
-            planning_time_s=args.planning_time,
-            attempts=args.attempts,
-        )
-    finally:
-        rclpy.shutdown()
-
-    if result is None:
-        return 2
-
-    code = int(result.error_code.val)
-    name = _MOVEIT_ERROR_NAMES.get(code, f"UNKNOWN({code})")
-    if code == int(MoveItErrorCodes.SUCCESS):
-        print(f"\nMoveIt result: SUCCESS ({code})")
-        return 0
-    print(f"\nMoveIt result: {name} ({code})  -- see moveit_msgs/MoveItErrorCodes")
-    return 3
+    return execute_named_pose(
+        args.pose,
+        group=args.group,
+        vel=args.vel,
+        accel=args.accel,
+        tolerance=args.tolerance,
+        planning_time=args.planning_time,
+        attempts=args.attempts,
+        plan_only=args.plan_only,
+        joints=args.joints,
+        move_gripper=not args.no_gripper,
+    )
 
 
 if __name__ == "__main__":

@@ -170,6 +170,10 @@ def generate_launch_description():
                     "pointcloud.enable": True,
                     # LibRealSense RS2_OPTION_STREAM_FILTER: 2 = color (RGB texture).
                     "pointcloud.stream_filter": 2,
+                    # Default IMAGE_QOS is SYSTEM_DEFAULT (RELIABLE, depth 1). That
+                    # stalls Python BEST_EFFORT subscribers after 1–2 frames.
+                    "color_qos": "SENSOR_DATA",
+                    "depth_qos": "SENSOR_DATA",
                     # Match MoveIt PointCloudOctomapUpdater (SensorDataQoS / BEST_EFFORT).
                     "pointcloud.pointcloud_qos": "SENSOR_DATA",
                     # Still publish XYZ if texture pairing fails (octomap only needs xyz).
