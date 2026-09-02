@@ -261,7 +261,7 @@ def execute_named_pose(
         node.destroy_node()
     finally:
         if own_ctx:
-            rclpy.shutdown()
+            rclpy.try_shutdown()
 
     if result is None:
         return 2

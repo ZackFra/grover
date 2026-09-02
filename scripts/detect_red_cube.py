@@ -188,6 +188,7 @@ class RedCubeDetector(Node):
         self._last_overlay_t = 0.0
         self._stop = threading.Event()
         self._new_color = threading.Event()
+        self._show_frame: np.ndarray | None = None
 
         self.create_subscription(
             CameraInfo, args.camera_info_topic, self._on_camera_info, sensor_qos
@@ -195,6 +196,9 @@ class RedCubeDetector(Node):
         self.create_subscription(Image, args.color_topic, self._on_color, sensor_qos)
         self.create_subscription(Image, args.depth_topic, self._on_depth, sensor_qos)
         self.create_timer(2.0, self._log_status)
+        if args.show:
+            cv2.namedWindow("red_cube overlay", cv2.WINDOW_NORMAL)
+            self.create_timer(0.05, self._show_tick)
 
         self._pose_pub = self.create_publisher(
             PoseStamped, "/red_cube/pose", sensor_qos
@@ -225,6 +229,18 @@ class RedCubeDetector(Node):
             f"world={args.world_frame}, ee={args.ee_frame}. "
             f"{overlay_note}"
         )
+
+    def _show_tick(self) -> None:
+        """imshow must run on the rclpy spin thread (not the worker)."""
+        with self._lock:
+            frame = self._show_frame
+        if frame is None:
+            return
+        try:
+            cv2.imshow("red_cube overlay", frame)
+            cv2.waitKey(1)
+        except cv2.error:
+            pass
 
     def stop(self) -> None:
         self._stop.set()
@@ -485,11 +501,8 @@ class RedCubeDetector(Node):
             _bgr_to_imgmsg(vis, stamp_sec, stamp_nsec, frame_id)
         )
         if self._args.show:
-            try:
-                cv2.imshow("red_cube overlay", vis)
-                cv2.waitKey(1)
-            except cv2.error:
-                pass
+            with self._lock:
+                self._show_frame = vis.copy()
 
     def _marker(
         self,
@@ -608,7 +621,7 @@ def main(argv: list[str] | None = None) -> int:
     node = RedCubeDetector(args)
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, rclpy.executors.ExternalShutdownException):
         pass
     finally:
         node.stop()

@@ -61,7 +61,10 @@ from ros_image_camera import ROSImageCameraConfig  # noqa: E402
 _WRIST_HOLD_JOINTS = ("wrist_roll", "wrist_flex")
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _DEFAULT_DATASET_ROOT = _REPO_ROOT / "outputs" / "datasets" / "so101_d405_wrist"
-_DEFAULT_CKPT_ROOT = _REPO_ROOT / "outputs" / "train" / "act_so101_d405_wrist" / "checkpoints"
+_DEFAULT_CKPT_ROOT = (
+    _REPO_ROOT / "outputs" / "train" / "act_so101_d405_wrist_v2" / "checkpoints"
+)
+_DEFAULT_POLICY = _DEFAULT_CKPT_ROOT / "100000" / "pretrained_model"
 
 
 def _hold_joint(name: str, position: float, tol: float) -> JointConstraint:
@@ -103,6 +106,8 @@ def _current_wrist_holds(roll_tol: float, flex_tol: float) -> list[JointConstrai
 
 
 def _default_policy_path() -> Path:
+    if _DEFAULT_POLICY.exists():
+        return _DEFAULT_POLICY
     last = _DEFAULT_CKPT_ROOT / "last" / "pretrained_model"
     if last.exists():
         return last
@@ -112,7 +117,7 @@ def _default_policy_path() -> Path:
     )
     if numbered:
         return numbered[-1] / "pretrained_model"
-    return last
+    return _DEFAULT_POLICY
 
 
 def run_grasp_inference(
@@ -386,7 +391,10 @@ def _build_parser() -> argparse.ArgumentParser:
         "--policy-path",
         type=Path,
         default=None,
-        help="ACT checkpoint dir (default: latest under outputs/train/act_so101_d405_wrist/checkpoints).",
+        help=(
+            "ACT checkpoint dir (default: "
+            "outputs/train/act_so101_d405_wrist_v2/checkpoints/100000/pretrained_model)."
+        ),
     )
     parser.add_argument(
         "--dataset-root",
@@ -412,7 +420,10 @@ def main(argv: list[str] | None = None) -> int:
         print("ERROR: --samples must be >= 1", file=sys.stderr)
         return 1
 
-    rclpy.init()
+    own_ctx = not rclpy.ok()
+    if own_ctx:
+        rclpy.init()
+    result = None
     try:
         try:
             pose = wait_for_stable_hover(
@@ -456,43 +467,44 @@ def main(argv: list[str] | None = None) -> int:
             attempts=args.attempts,
             extra_joint_constraints=wrist_holds,
         )
+
+        exit_code, message = format_moveit_result(result)
+        print(f"\n{message}")
+        if exit_code != 0 or args.plan_only:
+            return exit_code
+
+        if args.no_infer:
+            print("Parked above the cube. Skipping ACT (--no-infer).")
+            return 0
+
+        print("Parked above the cube. Running ACT grasp. Do not teleop or Plan & Execute.")
+        infer_failed = False
+        try:
+            run_grasp_inference(
+                policy_path=args.policy_path or _default_policy_path(),
+                dataset_root=args.dataset_root,
+                repo_id=args.repo_id,
+                task=args.task,
+                infer_time_s=args.infer_time_s,
+                fps=args.fps,
+                color_topic=args.color_topic,
+            )
+        except Exception as exc:
+            print(f"ERROR: ACT inference failed: {exc}", file=sys.stderr)
+            infer_failed = True
+
+        if args.no_home:
+            print("Skipping home (--no-home).")
+            return 4 if infer_failed else 0
+
+        print("Returning home.", flush=True)
+        home_code = execute_named_pose(args.home_pose, vel=args.vel, accel=args.accel)
+        if infer_failed:
+            return 4
+        return home_code
     finally:
-        rclpy.shutdown()
-
-    exit_code, message = format_moveit_result(result)
-    print(f"\n{message}")
-    if exit_code != 0 or args.plan_only:
-        return exit_code
-
-    if args.no_infer:
-        print("Parked above the cube. Skipping ACT (--no-infer).")
-        return 0
-
-    print("Parked above the cube. Running ACT grasp. Do not teleop or Plan & Execute.")
-    infer_failed = False
-    try:
-        run_grasp_inference(
-            policy_path=args.policy_path or _default_policy_path(),
-            dataset_root=args.dataset_root,
-            repo_id=args.repo_id,
-            task=args.task,
-            infer_time_s=args.infer_time_s,
-            fps=args.fps,
-            color_topic=args.color_topic,
-        )
-    except Exception as exc:
-        print(f"ERROR: ACT inference failed: {exc}", file=sys.stderr)
-        infer_failed = True
-
-    if args.no_home:
-        print("Skipping home (--no-home).")
-        return 4 if infer_failed else 0
-
-    print("Returning home.", flush=True)
-    home_code = execute_named_pose(args.home_pose, vel=args.vel, accel=args.accel)
-    if infer_failed:
-        return 4
-    return home_code
+        if own_ctx:
+            rclpy.try_shutdown()
 
 
 if __name__ == "__main__":
