@@ -4,6 +4,36 @@ ROS 2 Jazzy workspace for a **SO-101** follower arm (`gi_jane`) with a wrist-mou
 
 The robot is commanded in **joint position** through `ros2_control` (`ForwardCommandController`). Imitation uses wrist **RGB** (640×480 @ 30 Hz) plus joint state — not depth. Depth is used only for cube detection / hover.
 
+On hardware, the hover → ACT → home pipeline succeeded on **8 / 10** timed trials (**80%**). Further demos were consistent with that rate.
+
+## Who this is for
+
+This repo is for people putting a **SO-101 on ROS 2 Jazzy with a wrist D405** and wanting a path from teleop demos to a closed-loop pick — not a generic LeRobot tutorial and not a stock SO-101 URDF.
+
+Typical readers:
+
+- **SO-101 owners** who want MoveIt, `ros2_control`, and a wrist camera in one bringup instead of stitching Hugging Face LeRobot USB control to a separate ROS stack.
+- **Imitation / ACT users** who need the camera to live in ROS for detection and planning, then feed the **same** wrist RGB into LeRobot without opening the D405 twice.
+- **Anyone mounting a D405 on the SO-101 wrist.** Public SO-101 models generally stop at the gripper. This tree includes the printed holder mesh, inertial estimate (holder + camera), and hand-eye TF from `gripper` to `d405_wrist_color_optical_frame`. That description was rolled here because nothing equivalent turned up off the shelf.
+- **Jazzy + Feetech users** hitting `JointTrajectoryController` issues: MoveIt still Plan & Executes because a small adapter turns FollowJointTrajectory into FCC `Float64MultiArray` commands.
+
+You get less value if you only need stock `lerobot-teleop` on the Feetech bus with no ROS, or a different arm/camera.
+
+## What is actually novel here
+
+Pieces that are specific to this workspace, not copies of upstream SO-101 / LeRobot / RealSense demos:
+
+- **SO-101 + D405 URDF** — `Wrist_Roll_D405_Holder.stl` on the gripper link, mass/inertia for PLA holder + D405 body, optional URDF optical frames vs a calibrated static TF (`camera_pose.launch.py`). Hand-eye assets live under `config/realsense-d405/`.
+- **One launch, two camera owners** — `enable_d405:=true` for detect/hover/ACT (ROS node); `false` for record/eval (LeRobot `intelrealsense`). Documented because USB cannot be shared; mixing them fails with `VIDIOC_S_FMT`.
+- **ACT while ROS keeps the camera** — `scripts/ros_image_camera.py` is a LeRobot `Camera` that subscribes to `/d405_wrist/color/image_raw` (SensorData QoS) so policy inference does not steal the device from `realsense2_camera`.
+- **QoS that actually streams** — D405 color/depth default to Reliable + history 1, which stalls Python Best Effort subscribers after 1–2 frames. Bringup sets `color_qos` / `depth_qos` to `SENSOR_DATA`.
+- **FCC trajectory adapter** — JTC on this Feetech + Jazzy setup is not used for execution; `fcc_trajectory_adapter` is the MoveIt ↔ hardware bridge.
+- **Detect → hover → ACT → home** — HSV + aligned depth publishes `/red_cube/hover_pose`; MoveIt parks with wrist-roll/flex holds; ACT runs ~12 s; then `home`. `grasp_cube.py` loops that with a live Qt view (conda OpenCV is headless, so no `imshow`).
+- **Gripper outside the MoveIt `arm` group** — named pose YAML still commands `gripper_joint` on `/gripper_controller/commands`.
+- **Conda LeRobot + sourced Jazzy** — scripts preload conda OpenSSL 3.3 so `_ssl`/torch work after ROS puts Ubuntu 3.0 `libcrypto` on `LD_LIBRARY_PATH`; one rclpy context for the grasp loop so Jazzy does not hit `Context.init() must only be called once`.
+
+The ACT policy itself is stock LeRobot ACT on RGB + joints. The integration around it (description, bringup, camera split, hover, QoS, FCC) is the reusable part.
+
 ## Hardware
 
 | Role | Name | Notes |
@@ -184,6 +214,8 @@ Loop: **Enter** to start each cycle. Sequence:
 4. MoveIt to hover above the cube (wrist held)
 5. ACT ~12 s from the latest v2 checkpoint (`100000` by default)
 6. MoveIt `home`
+
+**Success rate:** **8 / 10** (80%) on a timed set of autonomous grasps; later demos matched that performance.
 
 A Qt window shows `/d405_wrist/color/image_raw` (`scripts/view_ros_image.py`; conda OpenCV cannot `imshow`). Ctrl-C quits. `--once` is a single grasp. `--no-detect` if `detect_red_cube.py` is already running.
 
