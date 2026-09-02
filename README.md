@@ -6,7 +6,7 @@ The robot is commanded in **joint position** through `ros2_control` (`ForwardCom
 
 On hardware, the hover → ACT → home pipeline succeeded on **8 / 10** timed trials (**80%**). Further demos were consistent with that rate.
 
-![Hover, ACT pick, and home](videos/demo.mp4)
+<video src="https://github.com/ZackFra/grover/releases/download/readme-assets/demo.mp4" controls playsinline width="360"></video>
 
 ## Who this is for
 
