@@ -3,3 +3,6 @@ install/
 log/
 __pycache__/
 outputs/
+videos/*.qt
+videos/*.mov
+videos/*.MOV

@@ -6,6 +6,8 @@ The robot is commanded in **joint position** through `ros2_control` (`ForwardCom
 
 On hardware, the hover → ACT → home pipeline succeeded on **8 / 10** timed trials (**80%**). Further demos were consistent with that rate.
 
+![Hover, ACT pick, and home](videos/demo.mp4)
+
 ## Who this is for
 
 This repo is for people putting a **SO-101 on ROS 2 Jazzy with a wrist D405** and wanting a path from teleop demos to a closed-loop pick — not a generic LeRobot tutorial and not a stock SO-101 URDF.
