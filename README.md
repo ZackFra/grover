@@ -13,6 +13,14 @@ On hardware, the hover → ACT → home pipeline succeeded on **8 / 10** timed t
   </tr>
 </table>
 
+## Dataset and models
+
+- **[Dataset](https://huggingface.co/datasets/ZackFra/so101_d405_wrist)** (`ZackFra/so101_d405_wrist`) — 86 leader-teleop episodes (18,279 frames @ 30 Hz) of “pick up the cube.” Wrist RGB 640×480 plus joint positions; no depth.
+- **[ACT v1](https://huggingface.co/ZackFra/act_so101_d405_wrist)** (`ZackFra/act_so101_d405_wrist`) — 80k-step ACT trained on the first 40 episodes.
+- **[ACT v2](https://huggingface.co/ZackFra/act_so101_d405_wrist_v2)** (`ZackFra/act_so101_d405_wrist_v2`) — 100k-step ACT on all 86 episodes. This is the checkpoint `grasp_cube.py` runs by default.
+
+Local copies still live under `outputs/` (gitignored).
+
 ## Who this is for
 
 This repo is for people putting a **SO-101 on ROS 2 Jazzy with a wrist D405** and wanting a path from teleop demos to a closed-loop pick — not a generic LeRobot tutorial and not a stock SO-101 URDF.
