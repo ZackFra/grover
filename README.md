@@ -8,7 +8,7 @@ On hardware, the hover → ACT → home pipeline succeeded on **8 / 10** timed t
 <table width="100%">
   <tr>
     <td align="center">
-      <video src="https://github.com/user-attachments/assets/f4cfbf77-6e72-4871-8430-97143479af3c" width="300" controls></video>
+      <video src="https://github.com/user-attachments/assets/f4cfbf77-6e72-4871-8430-97143479af3c" width="600" controls></video>
     </td>
   </tr>
 </table>
