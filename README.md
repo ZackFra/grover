@@ -5,9 +5,13 @@ ROS 2 Jazzy workspace for a **SO-101** follower arm (`gi_jane`) with a wrist-mou
 The robot is commanded in **joint position** through `ros2_control` (`ForwardCommandController`). Imitation uses wrist **RGB** (640×480 @ 30 Hz) plus joint state — not depth. Depth is used only for cube detection / hover.
 
 On hardware, the hover → ACT → home pipeline succeeded on **8 / 10** timed trials (**80%**). Further demos were consistent with that rate.
-<p align="center">
-  <video src="https://github.com/user-attachments/assets/f4cfbf77-6e72-4871-8430-97143479af3c" width="300" controls></video>
-</p>
+<table width="100%">
+  <tr>
+    <td align="center">
+      <video src="https://github.com/user-attachments/assets/f4cfbf77-6e72-4871-8430-97143479af3c" width="300" controls></video>
+    </td>
+  </tr>
+</table>
 
 ## Who this is for
 
